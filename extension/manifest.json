@@ -6,5 +6,6 @@
   "permissions": ["activeTab", "scripting"],
   "action": { "default_title": "Open Paperwise" },
   "background": { "service_worker": "background.js" },
+  "web_accessible_resources": [{ "resources": ["icon.png"], "matches": ["<all_urls>"] }],
   "icons": { "48": "icon.png", "128": "icon.png" }
 }

@@ -9,7 +9,7 @@ export type AssistantReply = {
 export type AssistantRequest = {
   scenarioTitle: string;
   scenarioContext: string;
-  fields: Pick<DemoField, 'id' | 'label' | 'type' | 'question' | 'explanation'>[];
+  fields: { id: string; label: string; type: string; question: string; explanation: string }[];
   values: Record<string, string>;
   activeFieldId: string | null;
   message: string;

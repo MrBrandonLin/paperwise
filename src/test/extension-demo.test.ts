@@ -14,3 +14,10 @@ describe('Guided website form', () => {
     expect(nextEmptyField(values)).toBe(5);
   });
 });
+import { demoScenarios, getScenario } from '@/lib/extension-demo';
+describe('Demo gallery', () => {
+  it('offers rental, clinic, grant, and license demos', () => {
+    expect(demoScenarios.map(s => s.id)).toEqual(['rental', 'clinic', 'grant', 'license']);
+    expect(getScenario('nope')).toBeUndefined();
+  });
+});

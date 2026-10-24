@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SessionRouteImport } from './routes/session'
+import { Route as DemosScenarioIdRouteImport } from './routes/demos.$scenarioId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -22,31 +23,40 @@ const SessionRoute = SessionRouteImport.update({
   path: '/session',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemosScenarioIdRoute = DemosScenarioIdRouteImport.update({
+  id: '/demos/$scenarioId',
+  path: '/demos/$scenarioId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
+  '/demos/$scenarioId': typeof DemosScenarioIdRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
+  '/demos/$scenarioId': typeof DemosScenarioIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
+  '/demos/$scenarioId': typeof DemosScenarioIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/session'
+  fullPaths: '/' | '/session' | '/demos/$scenarioId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/session'
-  id: '__root__' | '/' | '/session'
+  to: '/' | '/session' | '/demos/$scenarioId'
+  id: '__root__' | '/' | '/session' | '/demos/$scenarioId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SessionRoute: typeof SessionRoute
+  DemosScenarioIdRoute: typeof DemosScenarioIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -65,12 +75,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SessionRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demos/$scenarioId': {
+      id: '/demos/$scenarioId'
+      path: '/demos/$scenarioId'
+      fullPath: '/demos/$scenarioId'
+      preLoaderRoute: typeof DemosScenarioIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SessionRoute: SessionRoute,
+  DemosScenarioIdRoute: DemosScenarioIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

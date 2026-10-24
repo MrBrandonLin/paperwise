@@ -87,7 +87,7 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
   }
 
   return <div className={`extension-demo min-h-screen font-sans ${open ? 'panel-is-open' : ''}`}>
-    <div className="demo-site min-h-screen bg-background">
+    <div className={`demo-site theme-${scenario.id} min-h-screen bg-background text-foreground`}>
       <div className="flex items-center justify-between border-b border-border bg-secondary px-5 py-2 text-xs text-muted-foreground sm:px-10"><span className="flex items-center gap-2"><Globe2 className="size-3.5" /> Sample website · {scenario.context}</span><Link to="/" className="flex items-center gap-1.5 font-bold text-primary hover:underline"><LayoutGrid className="size-3.5" /> All demos</Link></div>
       <header className="flex h-22 items-center justify-between border-b border-border bg-paper px-6 sm:px-12">
         <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-md bg-host text-host-foreground"><HostIcon className="size-6" /></div><div><p className="text-lg font-bold">{scenario.brand}<span className="font-normal">{scenario.brandSuffix}</span></p><p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{scenario.tagline}</p></div></div>

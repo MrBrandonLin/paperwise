@@ -34,17 +34,28 @@ export const askPaperwiseAssistant = createServerFn({ method: 'POST' })
     const apiKey = process.env['GEMINI_API_KEY'];
     if (!apiKey) throw new Error('The assistant is not configured yet.');
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`,
-      {
+    const callGemini = () =>
+      fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
         method: 'POST',
         headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
         body: JSON.stringify({
           contents: [{ role: 'user', parts: [{ text: buildAssistantPrompt(data) }] }],
           generationConfig: assistantGenerationConfig,
         }),
-      },
-    );
+        signal: AbortSignal.timeout(60000),
+      });
+
+    let response: Response;
+    try {
+      response = await callGemini();
+      // Google returns 503 when the model is under high demand; give it one retry.
+      if (response.status === 503) {
+        await new Promise(resolve => setTimeout(resolve, 3000));
+        response = await callGemini();
+      }
+    } catch {
+      throw new Error('The assistant took too long to reply. Please try again.');
+    }
 
     if (!response.ok) {
       console.error(`Gemini request failed: ${response.status} ${await response.text()}`);

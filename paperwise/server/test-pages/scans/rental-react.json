@@ -1,0 +1,205 @@
+{
+  "url": "http://localhost:8787/test/rental-react.html",
+  "pageTitle": "Rental Application (React) – Maple Street Apartments",
+  "pageLanguage": "en",
+  "fields": [
+    {
+      "id": "pw-first",
+      "kind": "text",
+      "label": "First name",
+      "name": "first_name",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Applicant information",
+      "autocomplete": "given-name"
+    },
+    {
+      "id": "pw-last",
+      "kind": "text",
+      "label": "Last name",
+      "name": "last_name",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Applicant information",
+      "autocomplete": "family-name"
+    },
+    {
+      "id": "pw-dob",
+      "kind": "date",
+      "label": "Date of birth",
+      "name": "dob",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Applicant information"
+    },
+    {
+      "id": "pw-email",
+      "kind": "email",
+      "label": "Email",
+      "name": "email",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Applicant information",
+      "autocomplete": "email"
+    },
+    {
+      "id": "pw-phone",
+      "kind": "tel",
+      "label": "Phone number",
+      "name": "phone",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Applicant information",
+      "autocomplete": "tel"
+    },
+    {
+      "id": "pw-ssn",
+      "kind": "text",
+      "label": "Social Security Number",
+      "name": "ssn",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": true,
+      "sectionHint": "Applicant information",
+      "maxLength": 11
+    },
+    {
+      "id": "pw-status",
+      "kind": "select",
+      "label": "Employment status",
+      "name": "employment_status",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Employment and income",
+      "options": [
+        {
+          "value": "",
+          "label": "Select…"
+        },
+        {
+          "value": "employed",
+          "label": "Employed"
+        },
+        {
+          "value": "self",
+          "label": "Self-employed"
+        },
+        {
+          "value": "student",
+          "label": "Student"
+        },
+        {
+          "value": "unemployed",
+          "label": "Unemployed"
+        },
+        {
+          "value": "retired",
+          "label": "Retired"
+        }
+      ]
+    },
+    {
+      "id": "pw-income",
+      "kind": "number",
+      "label": "Gross monthly income (USD)",
+      "name": "gross_monthly_income",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Employment and income",
+      "min": "0"
+    },
+    {
+      "id": "pw-movein",
+      "kind": "date",
+      "label": "Desired move-in date",
+      "name": "move_in",
+      "required": true,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Rental details"
+    },
+    {
+      "id": "pw-pets",
+      "kind": "radio",
+      "label": "Do you have pets?",
+      "name": "pets",
+      "required": true,
+      "visible": true,
+      "options": [
+        {
+          "value": "yes",
+          "label": "Yes"
+        },
+        {
+          "value": "no",
+          "label": "No"
+        }
+      ],
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Rental details"
+    },
+    {
+      "id": "pw-cosigner",
+      "kind": "text",
+      "label": "Co-signer full name (if any)",
+      "name": "cosigner",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Rental details"
+    },
+    {
+      "id": "pw-credit",
+      "kind": "checkbox",
+      "label": "I authorize the landlord to obtain my credit report and verify the information above.",
+      "name": "credit_check_consent",
+      "required": true,
+      "visible": true,
+      "currentValue": "false",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Authorization"
+    },
+    {
+      "id": "pw-truth",
+      "kind": "checkbox",
+      "label": "I certify that the information provided is true and complete.",
+      "name": "certify",
+      "required": true,
+      "visible": true,
+      "currentValue": "false",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Authorization"
+    }
+  ]
+}

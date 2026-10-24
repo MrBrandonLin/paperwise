@@ -300,3 +300,6 @@
   .panel-is-open .demo-site { margin-right: calc(var(--panel-width) - 40px); }
   .glass-panel { top: 12px; bottom: 12px; right: 12px; border-radius: 1.5rem; border: 1px solid color-mix(in oklab, var(--card) 90%, transparent); overflow: hidden; }
 }
+@media (min-width: 701px) {
+  .panel-is-open .demo-site > div:first-child, .panel-is-open .demo-site > header { padding-right: 64px; }
+}

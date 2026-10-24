@@ -54,27 +54,57 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
     }
   }, [active, open, finished, submitted, field]);
 
-  function respond(event: FormEvent) {
+  async function respond(event: FormEvent) {
     event.preventDefault();
     const text = answer.trim();
-    if (!text || !field) return;
-    if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-      setBubbleReply('Please enter a complete email address, like name@example.com.');
-      return;
-    }
-    if (field.type === 'number' && (!Number.isFinite(Number(text)) || Number(text) < 0)) {
-      setBubbleReply(`Please enter ${field.label.toLowerCase()} as a positive number.`);
-      return;
-    }
-    const updated = { ...values, [field.id]: text };
-    setValues(updated);
+    if (!text || thinking) return;
     setMessages(previous => [...previous, { role: 'user', text }]);
     setAnswer('');
+    setPending(null);
+    setThinking(true);
+    setBubbleReply('');
+    try {
+      const result = await askPaperwiseAssistant({
+        data: {
+          scenarioTitle: scenario.title,
+          scenarioContext: scenario.context,
+          fields: demoFields.map(({ id, label, type, question, explanation }) => ({ id, label, type, question, explanation })),
+          values,
+          activeFieldId: finished ? null : (field?.id ?? null),
+          message: text,
+        },
+      });
+      setBubbleReply(result.reply);
+      if (result.proposal && !finished) setPending(result.proposal);
+    } catch (error) {
+      setBubbleReply(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setThinking(false);
+      setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    }
+  }
+
+  function applyProposal() {
+    if (!pending) return;
+    const target = demoFields.find(item => item.id === pending.fieldId);
+    if (!target) { setPending(null); return; }
+    if (target.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending.value)) {
+      setBubbleReply('That doesn’t look like a complete email address — could you check it?');
+      setPending(null);
+      return;
+    }
+    if (target.type === 'number' && (!Number.isFinite(Number(pending.value)) || Number(pending.value) < 0)) {
+      setBubbleReply(`Please give ${target.label.toLowerCase()} as a positive number.`);
+      setPending(null);
+      return;
+    }
+    const updated = { ...values, [target.id]: pending.value };
+    setValues(updated);
+    setPending(null);
     setSeal('idle');
     const next = nextEmptyField(updated, demoFields);
-    setBubbleReply(next >= 0 ? `Added to ${field.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
-    if (next >= 0) setActive(next);
-    setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    setBubbleReply(next >= 0 ? `Added to ${target.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
+    if (next >= 0) setActive(demoFields.findIndex(item => item.id === demoFields[next]!.id));
   }
 
   async function download() {

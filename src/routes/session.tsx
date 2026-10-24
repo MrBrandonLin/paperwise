@@ -189,33 +189,37 @@ function DownloadSection({ fields }: { fields: Field[] }) {
       </p>
 
       {/* Envelope stage */}
-      <div className="relative h-40 w-64">
+      <div className="relative mt-10 h-48 w-72" style={{ perspective: "700px" }}>
         {phase === "idle" ? (
           <div className="flex h-full items-center justify-center">
             <Mail className="h-16 w-16 text-muted-foreground" />
           </div>
         ) : (
           <div className={`relative h-full w-full ${phase === "sealing" || phase === "ready" ? "envelope-seal" : ""}`}>
-            {/* Paper sheet sliding in */}
-            <div aria-hidden className={`sheet-drop absolute left-1/2 top-2 h-28 w-40 -translate-x-1/2 rounded-sm bg-paper shadow-md`}>
-              <div className="space-y-1.5 p-2">
+            {/* Paper sheet sliding down into the envelope */}
+            <div aria-hidden className="sheet-drop absolute left-1/2 top-0 z-0 h-28 w-44 -translate-x-1/2 rounded-sm border border-border bg-paper shadow-md">
+              <div className="space-y-1.5 p-2.5">
                 <div className="h-1.5 w-3/4 rounded bg-muted" />
                 <div className="h-1.5 w-full rounded bg-muted" />
                 <div className="h-1.5 w-5/6 rounded bg-muted" />
                 <div className="h-1.5 w-2/3 rounded bg-filled" />
               </div>
             </div>
-            {/* Envelope body */}
-            <div className="absolute inset-x-0 bottom-0 h-24 rounded-lg border border-border bg-secondary shadow-paper" />
-            {/* Flap */}
+            {/* Envelope front pocket (V-shaped opening) */}
             <div
               aria-hidden
-              className="flap-close absolute inset-x-0 bottom-24 h-16 origin-top bg-muted"
-              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
+              className="absolute inset-x-3 bottom-0 z-10 h-28 rounded-b-xl border border-border bg-secondary shadow-paper"
+              style={{ clipPath: "polygon(0 0, 50% 48%, 100% 0, 100% 100%, 0 100%)" }}
             />
-            {/* Stamp */}
+            {/* Flap: starts open (folded up), rotates down to seal */}
+            <div
+              aria-hidden
+              className="flap-close absolute inset-x-3 bottom-28 z-20 h-16 origin-top border border-border bg-muted"
+              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)", backfaceVisibility: "hidden" }}
+            />
+            {/* Stamp of approval once sealed */}
             {phase === "ready" && (
-              <div className="stamp-pop absolute bottom-14 right-3 flex h-8 w-8 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+              <div className="stamp-pop absolute bottom-16 right-6 z-30 flex h-9 w-9 items-center justify-center rounded-full bg-primary text-primary-foreground shadow-md">
                 <Check className="h-5 w-5" />
               </div>
             )}

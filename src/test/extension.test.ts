@@ -6,7 +6,7 @@ describe('Paperwise extension field access', () => {
   beforeEach(() => {
     document.body.innerHTML = '<label for="name">Full name</label><input id="name"><input type="password"><input type="file"><input type="hidden"><input disabled><label for="consent">Consent</label><input id="consent" type="checkbox">';
     vi.spyOn(HTMLElement.prototype, 'getClientRects').mockReturnValue([{}] as unknown as DOMRectList);
-    vi.spyOn(HTMLElement.prototype, 'scrollIntoView').mockImplementation(() => {});
+    HTMLElement.prototype.scrollIntoView = vi.fn();
     (globalThis as any).__paperwiseInstalled = false;
     (globalThis as any).chrome = { runtime: { onMessage: { addListener: (callback: typeof listener) => { listener = callback; } } } };
     new Function(readFileSync('extension/content.js', 'utf8'))();

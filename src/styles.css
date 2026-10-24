@@ -211,6 +211,15 @@
 .reception-bubble::after { content: ''; position: absolute; right: -9px; bottom: 14px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid var(--paper); }
 @keyframes receptionist-talk { 0% { transform: scaleY(.35) scaleX(1.1); } 100% { transform: scaleY(1.5) scaleX(.85); } }
 @keyframes receptionist-listen { 0%, 100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(4deg) scale(1.12); } }
+.voice-display { display: flex; flex-direction: column; justify-content: center; min-height: 180px; padding: 20px 0; }
+.voice-waveform { display: flex; align-items: center; justify-content: center; gap: 4px; height: 112px; margin: 8px 0; overflow: hidden; }
+.voice-wave-bar { flex: 1 1 0; max-width: 5px; height: 28%; border-radius: 3px; background: var(--primary); animation: voice-level 1.2s ease-in-out infinite alternate; }
+.voice-wave-bar:nth-child(3n) { height: 58%; animation-delay: -.7s; animation-duration: 1.5s; }
+.voice-wave-bar:nth-child(4n) { height: 85%; animation-delay: -.3s; animation-duration: .9s; }
+.voice-wave-bar:nth-child(5n) { height: 42%; animation-delay: -1.1s; background: var(--host); }
+.voice-wave-bar:nth-child(7n) { height: 70%; animation-delay: -.5s; }
+.voice-wave-bar:first-child, .voice-wave-bar:last-child { height: 12%; }
+@keyframes voice-level { from { transform: scaleY(.25); opacity: .55; } to { transform: scaleY(1); opacity: 1; } }
 .demo-envelope-sheet { position: absolute; width: 17px; height: 22px; border: 1px solid var(--border); background: var(--paper); animation: demo-sheet 1.1s ease-in both; }
 .demo-envelope-seal { animation: envelope-seal .35s 1.1s ease-out both; }
 @keyframes demo-sheet { from { transform: translateY(-24px); opacity: 1; } to { transform: translateY(0); opacity: 0; } }
@@ -222,5 +231,5 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .demo-site { transition: none; }
-  .paperwise-panel, .demo-envelope-sheet, .demo-envelope-seal, .sheet-drop, .flap-close, .envelope-seal, .stamp-pop, .receptionist-mouth, .receptionist-ear { animation: none; }
+  .paperwise-panel, .demo-envelope-sheet, .demo-envelope-seal, .sheet-drop, .flap-close, .envelope-seal, .stamp-pop, .receptionist-mouth, .receptionist-ear, .voice-wave-bar { animation: none; }
 }

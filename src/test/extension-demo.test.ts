@@ -10,7 +10,7 @@ describe('Guided website form', () => {
   it('finishes guidance only after every demo field has an answer', () => {
     const values = Object.fromEntries(demoFields.map(field => [field.id, 'Answered']));
     expect(nextEmptyField(values)).toBe(-1);
-    delete values.income;
+    delete values['income'];
     expect(nextEmptyField(values)).toBe(5);
   });
 });

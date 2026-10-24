@@ -1,0 +1,22 @@
+#paperwise-prompt{all:initial;position:fixed;right:24px;bottom:24px;z-index:2147483647;display:flex;align-items:flex-end;gap:12px;font:14px/1.4 system-ui,sans-serif;color:#28324a;animation:pw-in .5s cubic-bezier(.2,.8,.2,1) both}
+#paperwise-prompt *{box-sizing:border-box}
+#paperwise-prompt .pw-card{position:relative;order:-1;width:270px;padding:16px 18px;background:linear-gradient(160deg,rgba(255,255,255,.82),rgba(225,233,245,.7));backdrop-filter:blur(22px) saturate(150%);border:1px solid rgba(255,255,255,.85);border-radius:18px;box-shadow:inset 0 1px 0 #fff,0 18px 40px rgba(20,30,50,.22)}
+#paperwise-prompt .pw-card::after{content:'';position:absolute;right:-10px;bottom:28px;border-top:8px solid transparent;border-bottom:8px solid transparent;border-left:10px solid rgba(240,244,250,.95)}
+#paperwise-prompt .pw-tag{font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:#2c6f5a}
+#paperwise-prompt .pw-title{margin:4px 24px 14px 0;font:600 18px/1.3 Georgia,serif;color:#1f2a40}
+#paperwise-prompt .pw-actions{display:flex;gap:8px}
+#paperwise-prompt button{font:600 13px system-ui,sans-serif;cursor:pointer;border:0;border-radius:10px}
+#paperwise-prompt .pw-yes{flex:1;padding:10px 12px;background:#2c4f86;color:#fff}
+#paperwise-prompt .pw-yes:hover{background:#244273}
+#paperwise-prompt .pw-no{padding:10px 12px;background:transparent;color:#4a5570}
+#paperwise-prompt .pw-x{position:absolute;top:8px;right:10px;background:none;font-size:18px;color:#5b6680}
+#paperwise-prompt button:focus-visible{outline:3px solid #2c6fd6;outline-offset:2px}
+#paperwise-prompt .pw-guy-head,#paperwise-prompt .pw-guy-body{background:linear-gradient(135deg,rgba(255,255,255,.7),rgba(60,110,190,.45) 38%,rgba(44,79,134,.75) 72%,rgba(70,160,140,.65));border:1px solid rgba(255,255,255,.75);box-shadow:inset 2px 2px 5px rgba(255,255,255,.65),inset -3px -4px 7px rgba(44,79,134,.6),0 4px 9px rgba(44,79,134,.25)}
+#paperwise-prompt .pw-guy-head{position:relative;width:40px;height:40px;border-radius:50%;margin:0 auto 6px}
+#paperwise-prompt .pw-guy-head::before{content:'';position:absolute;width:14px;height:7px;top:6px;left:6px;border-radius:50%;background:rgba(255,255,255,.8);transform:rotate(-35deg)}
+#paperwise-prompt .pw-guy-body{width:54px;height:44px;border-radius:22px 22px 3px 3px}
+#paperwise-prompt .pw-guy-mouth{position:absolute;width:14px;height:7px;left:13px;bottom:9px;border-radius:50%;background:#fff;animation:pw-talk .38s ease-in-out infinite alternate}
+#paperwise-prompt .pw-quiet .pw-guy-mouth{animation:none;height:3px;transform:none}
+@keyframes pw-talk{0%{transform:scaleY(.35) scaleX(1.1)}100%{transform:scaleY(1.5) scaleX(.85)}}
+@keyframes pw-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@media (prefers-reduced-motion:reduce){#paperwise-prompt,#paperwise-prompt .pw-guy-mouth{animation:none}}

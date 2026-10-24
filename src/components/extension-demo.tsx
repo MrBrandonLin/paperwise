@@ -4,6 +4,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowRight, Briefcase, Building2, Landmark,
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { downloadDemoPdf, nextEmptyField, sectionsOf, type DemoScenario, type DemoValues } from '@/lib/extension-demo';
+import { askPaperwiseAssistant } from '@/lib/assistant.functions';
 import office from '@/assets/office-arch.jpg';
 import logo from '@/assets/paperwise-logo.png.asset.json';
 
@@ -26,6 +27,8 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
   const [downloadError, setDownloadError] = useState('');
   const [bubbleReply, setBubbleReply] = useState('');
   const [speaking, setSpeaking] = useState(true);
+  const [thinking, setThinking] = useState(false);
+  const [pending, setPending] = useState<{ fieldId: string; value: string } | null>(null);
   const panelBody = useRef<HTMLDivElement>(null);
   const field = demoFields[active];
   const completed = demoFields.filter(item => values[item.id]?.trim()).length;

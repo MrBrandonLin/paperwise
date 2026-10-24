@@ -36,31 +36,34 @@ export const askPaperwiseAssistant = createServerFn({ method: 'POST' })
     const apiKey = process.env['GEMINI_API_KEY'];
     if (!apiKey) throw new Error('The assistant is not configured yet.');
 
-    const callGemini = () =>
-      fetch(`https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent`, {
-        method: 'POST',
-        headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
-        body: JSON.stringify({
-          contents: [{ role: 'user', parts: [{ text: buildAssistantPrompt(data) }] }],
-          generationConfig: assistantGenerationConfig,
-        }),
-        signal: AbortSignal.timeout(60000),
-      });
+    const body = JSON.stringify({
+      contents: [{ role: 'user', parts: [{ text: buildAssistantPrompt(data) }] }],
+      generationConfig: assistantGenerationConfig,
+    });
 
-    let response: Response;
-    try {
-      response = await callGemini();
-      // Google returns 503 when the model is under high demand; give it one retry.
-      if (response.status === 503) {
-        await new Promise(resolve => setTimeout(resolve, 3000));
-        response = await callGemini();
+    let response: Response | null = null;
+    for (const model of GEMINI_MODELS) {
+      try {
+        const attempt = await fetch(
+          `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
+          {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', 'x-goog-api-key': apiKey },
+            body,
+            signal: AbortSignal.timeout(35000),
+          },
+        );
+        if (attempt.ok) {
+          response = attempt;
+          break;
+        }
+        console.error(`Gemini model ${model} failed: ${attempt.status}`);
+      } catch {
+        console.error(`Gemini model ${model} timed out`);
       }
-    } catch {
-      throw new Error('The assistant took too long to reply. Please try again.');
     }
 
-    if (!response.ok) {
-      console.error(`Gemini request failed: ${response.status} ${await response.text()}`);
+    if (!response) {
       throw new Error('The assistant is unavailable right now. Please try again.');
     }
 

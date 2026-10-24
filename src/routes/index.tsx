@@ -1,6 +1,9 @@
-import { createFileRoute, Link } from '@tanstack/react-router';
-import { ArrowRight, Briefcase, Building2, Ear, Landmark, Mic, ShieldCheck, Sparkles, Stethoscope } from 'lucide-react';
+import { useState } from 'react';
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
+import { ArrowRight, Briefcase, Building2, Download, Ear, FileUp, Landmark, Mic, Puzzle, ShieldCheck, Sparkles, Stethoscope, Upload } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import { demoScenarios } from '@/lib/extension-demo';
+import { CUSTOM_KEY, scenarioFromFile } from '@/lib/custom-upload';
 import office from '@/assets/office-arch.jpg';
 
 const icons = { home: Building2, clinic: Stethoscope, briefcase: Briefcase, landmark: Landmark };
@@ -60,6 +63,68 @@ function DemoHub() {
           </Link>;
         })}
       </div>
+
+      <div className="mt-14 grid gap-5 md:grid-cols-2">
+        <UploadCard />
+        <ExtensionCard />
+      </div>
     </main>
   </div>;
+}
+
+function UploadCard() {
+  const navigate = useNavigate();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  async function handle(file?: File) {
+    if (!file) return;
+    setBusy(true); setError('');
+    try {
+      const { scenario } = await scenarioFromFile(file);
+      sessionStorage.setItem(CUSTOM_KEY, JSON.stringify(scenario));
+      await navigate({ to: '/demos/custom' });
+    } catch {
+      setError('That file could not be opened. Please try another.');
+      setBusy(false);
+    }
+  }
+  return <section className="glass-light flex flex-col rounded-2xl p-6">
+    <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><Upload className="size-6" /></div>
+    <h2 className="mt-5 text-xl font-bold">Test your own form</h2>
+    <p className="mt-2 flex-1 text-sm leading-relaxed text-muted-foreground">Upload a fillable PDF or a text form. Paperwise finds the fields and guides you through them. Your file stays in your browser.</p>
+    <label className={`mt-5 flex cursor-pointer items-center justify-center gap-2 rounded-xl border-2 border-dashed border-primary/30 px-4 py-5 text-sm font-bold text-primary transition hover:bg-primary/5 ${busy ? 'pointer-events-none opacity-60' : ''}`}>
+      <FileUp className="size-4" />{busy ? 'Reading your file…' : 'Choose a file'}
+      <input type="file" accept=".pdf,.txt,.md,.csv,image/*" className="sr-only" onChange={event => handle(event.target.files?.[0])} />
+    </label>
+    {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
+  </section>;
+}
+
+function ExtensionCard() {
+  const [error, setError] = useState('');
+  function download() {
+    setError('');
+    fetch('/paperwise-extension.zip')
+      .then(res => { if (!res.ok) throw new Error(); return res.blob(); })
+      .then(blob => {
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = 'paperwise-extension.zip';
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 10000);
+      })
+      .catch(() => setError('The download failed. Please try again.'));
+  }
+  return <section className="glass-light flex flex-col rounded-2xl p-6">
+    <div className="flex size-12 items-center justify-center rounded-xl bg-primary/10 text-primary"><Puzzle className="size-6" /></div>
+    <h2 className="mt-5 text-xl font-bold">Get the browser extension</h2>
+    <p className="mt-2 text-sm leading-relaxed text-muted-foreground">An early preview for Chrome, Edge, and Brave. Click the Paperwise icon on any page with a form.</p>
+    <ol className="mt-3 flex-1 list-decimal space-y-1 pl-5 text-xs text-muted-foreground">
+      <li>Download and unzip the file.</li>
+      <li>Open <span className="font-bold text-foreground">chrome://extensions</span> and turn on Developer mode.</li>
+      <li>Click <span className="font-bold text-foreground">Load unpacked</span> and pick the unzipped folder.</li>
+    </ol>
+    <Button onClick={download} className="mt-5 gap-2"><Download className="size-4" /> Download extension</Button>
+    {error && <p role="alert" className="mt-2 text-xs text-destructive">{error}</p>}
+  </section>;
 }

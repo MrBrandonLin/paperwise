@@ -1,8 +1,7 @@
-import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Mic, Send, Settings } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
-import receptionAeroDoor from "@/assets/reception-aero-door.jpg";
-import { Button } from "@/components/ui/button";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Camera, FileUp, Mic, Languages, ShieldAlert, Eye } from "lucide-react";
+import officeArch from "@/assets/office-arch.jpg";
+import woodenTable from "@/assets/wooden-table.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -11,188 +10,90 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Paperwise reads your form, explains it in plain words, and fills it in as you talk — in your language." },
       { property: "og:title", content: "Paperwise — Get through any form, by voice" },
       { property: "og:description", content: "An AI that sits next to you and walks you through any form, in your language." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
 });
 
-// The glowing door's position inside the 1920x1280 scene, in percent.
-const DOOR = { x: 77.8, y: 12.5, w: 16.5, h: 62 };
-const IMG_W = 1920;
-const IMG_H = 1280;
-
-type Box = { left: number; top: number; width: number; height: number };
+const powers = [
+  { icon: Eye, title: "Understands the form", text: "Every field, what it really asks, and which ones only apply sometimes." },
+  { icon: ShieldAlert, title: "Explains anything", text: "Ask “what does this mean?” and get plain words — with high-stakes boxes flagged." },
+  { icon: Languages, title: "Translates both ways", text: "Speak your language. Answers land on the form in its language, side by side." },
+];
 
 function Index() {
-  const navigate = useNavigate();
-  const [message, setMessage] = useState("");
-  const [dragging, setDragging] = useState(false);
-  const [doorBox, setDoorBox] = useState<Box | null>(null);
-  const sceneRef = useRef<HTMLDivElement>(null);
-  const fileInput = useRef<HTMLInputElement>(null);
-
-  const start = () => navigate({ to: "/session" });
-
-  const startWithFile = (file?: File | null) => {
-    if (file) {
-      try {
-        sessionStorage.setItem("paperwise-form-name", file.name);
-      } catch {
-        /* storage unavailable — still start the session */
-      }
-    }
-    navigate({ to: "/session" });
-  };
-
-  // Map the door's position in the photo to on-screen pixels, accounting for
-  // how object-cover crops the image (25%→70% offset on small screens, center on md+).
-  useEffect(() => {
-    const compute = () => {
-      const el = sceneRef.current;
-      if (!el) return;
-      const r = el.getBoundingClientRect();
-      const posX = window.matchMedia("(min-width: 768px)").matches ? 0.5 : 0.7;
-      const s = Math.max(r.width / IMG_W, r.height / IMG_H);
-      const dw = IMG_W * s;
-      const dh = IMG_H * s;
-      const x0 = (r.width - dw) * posX;
-      const y0 = (r.height - dh) * 0.5;
-      setDoorBox({
-        left: x0 + (DOOR.x / 100) * dw,
-        top: y0 + (DOOR.y / 100) * dh,
-        width: (DOOR.w / 100) * dw,
-        height: (DOOR.h / 100) * dh,
-      });
-    };
-    compute();
-    window.addEventListener("resize", compute);
-    return () => window.removeEventListener("resize", compute);
-  }, []);
-
-  const labelLeft = doorBox ? Math.min(Math.max(doorBox.left + doorBox.width / 2, 110), (sceneRef.current?.clientWidth ?? 9999) - 110) : 0;
-
   return (
-    <div
-      ref={sceneRef}
-      className="relative min-h-screen overflow-hidden"
-      onDragOver={(e) => {
-        e.preventDefault();
-        setDragging(true);
-      }}
-      onDragLeave={(e) => {
-        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
-        setDragging(false);
-      }}
-      onDrop={(e) => {
-        e.preventDefault();
-        setDragging(false);
-        startWithFile(e.dataTransfer.files?.[0]);
-      }}
-    >
-      {/* The reception room, door included */}
-      <img
-        src={receptionAeroDoor}
-        alt="A glossy aqua-blue faceless receptionist behind a curved white desk under a Paperwise wall sign, next to a glowing frosted-glass door"
-        width={1920}
-        height={1280}
-        className="absolute inset-0 h-full w-full object-cover object-[70%_center] md:object-center"
-      />
-      <div aria-hidden className="absolute inset-0 bg-foreground/10" />
+    <div className="relative min-h-screen bg-background">
+      {/* Soft office room behind everything */}
+      <div aria-hidden className="fixed inset-0 bg-cover bg-center opacity-25 blur-[2px]" style={{ backgroundImage: `url(${officeArch})` }} />
+      <div aria-hidden className="fixed inset-0 bg-background/60" />
 
-      <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
-        <h1 className="sr-only">Paperwise</h1>
-        <Button asChild variant="secondary" size="sm" className="absolute right-4 top-4 z-20 shadow-paper"><Link to="/demo">Try the browser extension</Link></Button>
+      <div className="relative flex min-h-screen flex-col">
+        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6">
+          <span className="font-display text-2xl">Paperwise</span>
+          <button className="rounded-full border border-border bg-card/70 px-4 py-2 text-sm backdrop-blur-sm">Large text · Aa</button>
+        </header>
 
-        {/* Speech bubble, anchored beside the receptionist figure */}
-        <div className="absolute left-[4%] top-[6%] max-w-xs md:left-[22%] md:top-[10%] md:max-w-sm lg:left-[28%] lg:top-[22%]">
-          <div className="relative rounded-2xl bg-card/70 p-5 shadow-paper backdrop-blur-md">
-            {/* bubble tail pointing at the receptionist */}
-            <div aria-hidden className="absolute -right-3 top-8 h-6 w-6 rotate-45 rounded-tr-md bg-card/70" />
-            <p className="relative text-lg md:text-xl">Hi! What can I help you with?</p>
-            <p className="relative mt-1 text-sm text-muted-foreground">
-              Snap a photo of any form — I'll read it, explain it, and fill it in with you.
-            </p>
-          </div>
-        </div>
-        <div />
-
-        {/* Invisible click zone over the physical door in the scene */}
-        {doorBox && (
-          <>
-            <input
-              ref={fileInput}
-              type="file"
-              accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,image/*,application/pdf"
-              className="hidden"
-              onChange={(e) => {
-                startWithFile(e.target.files?.[0]);
-                e.target.value = "";
-              }}
-            />
-            <button
-              type="button"
-              onClick={() => fileInput.current?.click()}
-              aria-label="Bring your form: upload a file to start"
-              style={{ left: doorBox.left, top: doorBox.top, width: doorBox.width, height: doorBox.height }}
-              className={`group absolute z-10 rounded-lg outline-none transition-colors duration-300 hover:bg-primary/10 ${
-                dragging ? "bg-primary/20 ring-2 ring-inset ring-primary" : ""
-              }`}
-            >
-              {/* soft glow when you hover the door */}
-              <span
-                aria-hidden
-                className="pointer-events-none absolute inset-[-10%] rounded-full bg-primary/30 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+        <main className="mx-auto w-full max-w-7xl px-6">
+          <section className="grid gap-8 py-6 md:py-10 lg:grid-cols-[1.1fr_1fr]">
+            {/* Walled arch into the office, with the pitch in front */}
+            <div className="relative overflow-hidden rounded-[2rem] shadow-paper">
+              <img
+                src={officeArch}
+                alt="An arched doorway opening into a quiet office"
+                width={1024}
+                height={1536}
+                className="h-[32rem] w-full object-cover md:h-[38rem]"
               />
-            </button>
-            <span
-              style={{ left: labelLeft, top: doorBox.top + doorBox.height + 10 }}
-              className="absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-card/85 px-3 py-1 text-xs text-foreground shadow-paper backdrop-blur-sm"
-            >
-              {dragging ? "Drop your form here" : "Bring your form"}
-            </span>
-          </>
-        )}
+              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-background via-background/45 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-8 md:p-10">
+                <h1 className="font-display text-5xl leading-[1.05] md:text-6xl">
+                  Any form.<br />Your language.<br /><span className="text-primary">Just talk.</span>
+                </h1>
+                <p className="mt-5 max-w-md text-lg text-muted-foreground">
+                  Snap a photo of your paperwork. Paperwise reads it, explains it, and fills it in while you watch.
+                </p>
+              </div>
+            </div>
 
-        {/* Bottom row: talk to the receptionist */}
-        <form
-          className="mx-auto flex w-full max-w-5xl items-stretch gap-3"
-          onSubmit={(e) => {
-            e.preventDefault();
-            start();
-          }}
-        >
-          <label className="flex flex-1 items-center gap-3 rounded-2xl bg-card/95 px-5 shadow-paper backdrop-blur-sm">
-            <span className="sr-only">Type your question</span>
-            <input
-              value={message}
-              onChange={(e) => setMessage(e.target.value)}
-              placeholder="Type here, or tap the mic and just talk…"
-              className="h-14 w-full bg-transparent text-lg outline-none placeholder:text-muted-foreground"
-            />
-            <button type="submit" aria-label="Send" className="text-muted-foreground transition-colors hover:text-primary">
-              <Send className="h-5 w-5" />
-            </button>
-          </label>
+            {/* Wooden table where the paperwork lands */}
+            <div className="relative flex items-center justify-center overflow-hidden rounded-[2rem] bg-cover bg-center p-6 shadow-paper sm:p-10" style={{ backgroundImage: `url(${woodenTable})` }}>
+              <div aria-hidden className="absolute inset-0 bg-foreground/10" />
+              <div className="relative w-full max-w-md -rotate-1 rounded-2xl bg-paper p-8 text-center shadow-paper transition-transform hover:rotate-0">
+                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground">
+                  <FileUp className="h-7 w-7" />
+                </div>
+                <p className="mt-4 font-display text-2xl">Bring your form</p>
+                <p className="mt-1 text-muted-foreground">Photo or PDF — even a paper one.</p>
+                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
+                  <Link to="/session" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-primary-foreground">
+                    <Camera className="h-5 w-5" /> Take a photo
+                  </Link>
+                  <Link to="/session" className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3">
+                    <FileUp className="h-5 w-5" /> Upload file
+                  </Link>
+                </div>
+                <Link to="/session" className="mt-5 inline-block text-sm text-primary underline underline-offset-4">
+                  Try a sample rental application
+                </Link>
+              </div>
+            </div>
+          </section>
 
-          <button
-            type="button"
-            onClick={start}
-            aria-label="Talk by voice"
-            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-paper transition-transform hover:scale-105 sm:w-20"
-          >
-            <Mic className="h-6 w-6" />
-          </button>
+          <section className="grid gap-6 pb-24 md:grid-cols-3">
+            {powers.map((p) => (
+              <div key={p.title} className="rounded-2xl bg-secondary/90 p-6 shadow-paper backdrop-blur-sm">
+                <p.icon className="h-6 w-6 text-primary" />
+                <h3 className="mt-4 font-display text-xl">{p.title}</h3>
+                <p className="mt-2 text-muted-foreground">{p.text}</p>
+              </div>
+            ))}
+          </section>
+        </main>
 
-          <button
-            type="button"
-            aria-label="Settings"
-            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-card/95 text-muted-foreground shadow-paper backdrop-blur-sm transition-colors hover:text-foreground sm:w-20"
-          >
-            <Settings className="h-6 w-6" />
-          </button>
-        </form>
+        <footer className="flex items-center justify-center gap-2 pb-10 text-sm text-muted-foreground">
+          <Mic className="h-4 w-4" /> Voice-first, never voice-only. Captions always on.
+        </footer>
       </div>
     </div>
   );

@@ -11,8 +11,6 @@ export const Route = createFileRoute("/session")({
       { name: "description", content: "Talk through your form while Paperwise fills it in live." },
       { property: "og:title", content: "Your form session — Paperwise" },
       { property: "og:description", content: "Watch your form fill itself in as you talk." },
-      { property: "og:type", content: "website" },
-      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Session,

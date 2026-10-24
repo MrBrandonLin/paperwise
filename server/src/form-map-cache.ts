@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, writeFileSync } from 'node:fs';
 import { dirname } from 'node:path';
 import type { FormMap } from '../../src/shared/contract.ts';
+import { paths } from './paths.ts';
 
 /**
  * Form-map cache, kept in memory and saved to disk so a server restart doesn't make every
@@ -10,7 +11,7 @@ import type { FormMap } from '../../src/shared/contract.ts';
  * File: FORM_MAP_CACHE_FILE (default server/.cache/form-maps.json). Set it to "" to disable.
  */
 const MAX_ENTRIES = 300;
-const DEFAULT_FILE = new URL('../.cache/form-maps.json', import.meta.url).pathname;
+const DEFAULT_FILE = paths.cacheFile;
 
 export class FormMapCache {
   private entries = new Map<string, FormMap>();

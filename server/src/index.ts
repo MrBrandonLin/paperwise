@@ -1,10 +1,12 @@
 import { serve } from '@hono/node-server';
 import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import type { Language, ScanResult } from '../../src/shared/contract.ts';
 import { app } from './app.ts';
 import { env } from './env.ts';
 import { streamFormMap } from './form-map.ts';
 import { geminiConfigured, warmUpGemini } from './gemini.ts';
+import { paths } from './paths.ts';
 
 serve({ fetch: app.fetch, port: env.port }, (info) => {
   console.log(`Paperwise backend on http://localhost:${info.port}`);
@@ -22,9 +24,8 @@ async function warmUp() {
   if (!geminiConfigured()) return;
   await warmUpGemini();
   if (process.env.PREWARM === '0') return;
-  const dir = new URL('../test-pages/scans/', import.meta.url);
-  for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
-    const scan = JSON.parse(readFileSync(new URL(file, dir), 'utf8')) as ScanResult;
+  for (const file of readdirSync(paths.scans).filter((f) => f.endsWith('.json'))) {
+    const scan = JSON.parse(readFileSync(join(paths.scans, file), 'utf8')) as ScanResult;
     for (const language of ['en', 'fr'] as Language[]) {
       // One form at a time: stay far from rate limits while users may be arriving.
       // Background priority: only spare request budget, users always go first.

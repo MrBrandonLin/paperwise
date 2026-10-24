@@ -3,11 +3,11 @@ import { Hono } from 'hono';
 import { cors } from 'hono/cors';
 import { logger } from 'hono/logger';
 import { stream } from 'hono/streaming';
-import { fileURLToPath } from 'node:url';
 import type { Language } from '../../src/shared/contract.ts';
 import type { FormMapRequestBody } from '../../src/shared/messages.ts';
 import { env } from './env.ts';
 import { streamFormMap } from './form-map.ts';
+import { paths } from './paths.ts';
 
 /** The HTTP app (no listening here, so tests can call app.request directly). */
 export const app = new Hono();
@@ -74,5 +74,4 @@ app.get('/agent-token', async (c) => {
 });
 
 /** Test forms for development and the demo: http://localhost:8787/test/rental.html */
-const publicDir = fileURLToPath(new URL('../public', import.meta.url));
-app.use('/test/*', serveStatic({ root: publicDir }));
+app.use('/test/*', serveStatic({ root: paths.public }));

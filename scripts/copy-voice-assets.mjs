@@ -5,8 +5,10 @@
 import { copyFileSync, mkdirSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const root = new URL('..', import.meta.url).pathname;
+// fileURLToPath, never new URL(...).pathname: that gives "/C:/..." on Windows (read as C:\C:\...).
+const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const out = join(root, 'public/elevenlabs');
 mkdirSync(out, { recursive: true });
 const require = createRequire(import.meta.url);

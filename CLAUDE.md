@@ -84,6 +84,7 @@ src/
 server/
   src/index.ts           Hono app: /health, /form-map, /agent-token, /test/* static
   src/env.ts             loads server/.env
+  src/paths.ts           every file path the server uses (.env, cache, scans, public), Windows-safe
   src/app.ts             Hono routes; POST /form-map streams NDJSON (skeleton → sections → done)
   src/form-map.ts        streamed form map: local skeleton, parallel parts, merge, cache, fallback
   src/form-map-cache.ts  memory + disk cache (server/.cache, structure only, gitignored)
@@ -110,6 +111,8 @@ server/
   message; the teammate's UI: in-page shadow root (his styles + font, amber review, Tailwind shadows, nothing
   added to the page, page font size can't shrink it), side panel notice, Shift+D, mock session.
 - `pnpm --dir server test:form-map` — form-map pipeline against a fake Gemini (no key needed).
+- `pnpm --dir server test:paths` — server file paths on Windows-style URLs (.env, cache, scans, test pages) +
+  fails if any script builds a path from `new URL(..., import.meta.url)`.
 - `pnpm test:state` — validators, engine safety rail, review rules, reducer + mock player.
 - `pnpm test:voice` — voice session wiring with a fake ElevenLabs SDK.
 - `pnpm --dir server agent:setup [--dry-run]` — create/update the ElevenLabs agent + 6 tools via API.
@@ -263,5 +266,7 @@ Contract changes so far (announced): `request_typing`, `review_started`, `review
 ## Working rules
 - Build in small phases. After each phase, give exact steps to test it by hand.
 - Prefer boring, reliable code over clever code. Hackathon: it must work on stage.
+- File paths: `fileURLToPath` + `path.join` (server: `server/src/paths.ts`), never
+  `new URL(..., import.meta.url).pathname` — on Windows it becomes `C:\C:\…` (teammate's machine, 2026-10-24).
 - Run `pnpm check` after every change and fix errors before reporting done.
 - Don't commit unless asked.

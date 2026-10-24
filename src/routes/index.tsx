@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Mic, Send, Settings, Upload } from "lucide-react";
+import { Mic, Send, Settings } from "lucide-react";
 import { useRef, useState } from "react";
 import receptionAero from "@/assets/reception-aero.jpg";
 
@@ -61,16 +61,6 @@ function Index() {
       />
       <div aria-hidden className="absolute inset-0 bg-foreground/10" />
 
-      {/* Highlight while dragging a form over the page */}
-      {dragging && (
-        <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/60 backdrop-blur-sm">
-          <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-primary bg-card/90 px-10 py-8 shadow-paper">
-            <Upload className="h-10 w-10 text-primary" />
-            <p className="font-display text-xl">Drop your form here</p>
-          </div>
-        </div>
-      )}
-
       <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
         <h1 className="sr-only">Paperwise</h1>
 
@@ -87,7 +77,33 @@ function Index() {
         </div>
         <div />
 
-        {/* Bottom row: bring a form, or talk to the receptionist */}
+        {/* The door: bring your form into the office through here */}
+        <div className="absolute bottom-[34%] right-[4%] hidden flex-col items-center sm:flex md:right-[5%] lg:bottom-[36%]">
+          {/* glow spilling onto the wall around the door */}
+          <div
+            aria-hidden
+            className={`pointer-events-none absolute inset-[-18%] rounded-full bg-primary/25 blur-2xl transition-opacity duration-300 ${dragging ? "opacity-100" : "opacity-60"}`}
+          />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            aria-label="Bring your form: upload a file to start"
+            className={`relative block h-[34vh] w-[16vh] rounded-t-xl border-2 bg-gradient-to-b from-card/50 via-primary/10 to-primary/25 shadow-paper backdrop-blur-[2px] transition-all duration-300 hover:scale-[1.04] hover:border-primary/70 ${
+              dragging ? "scale-105 border-primary" : "border-card/90"
+            }`}
+          >
+            {/* light shining through the frosted glass door */}
+            <span aria-hidden className="absolute inset-x-2 top-2 bottom-5 rounded-lg bg-gradient-to-b from-primary/40 via-primary/10 to-primary/5 blur-[6px]" />
+            <span aria-hidden className="absolute inset-x-2 top-2 bottom-5 rounded-lg border border-card/70 bg-card/35" />
+            {/* handle */}
+            <span aria-hidden className="absolute right-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-card shadow-sm" />
+          </button>
+          <span className="mt-2 whitespace-nowrap rounded-full bg-card/85 px-3 py-1 text-xs text-foreground shadow-paper backdrop-blur-sm">
+            {dragging ? "Drop your form here" : "Bring your form"}
+          </span>
+        </div>
+
+        {/* Bottom row: talk to the receptionist */}
         <form
           className="mx-auto flex w-full max-w-5xl items-stretch gap-3"
           onSubmit={(e) => {
@@ -108,7 +124,7 @@ function Index() {
             </button>
           </label>
 
-          {/* Upload your form — opens a file picker, then starts the session */}
+          {/* Upload lives in the door now */}
           <input
             ref={fileInput}
             type="file"
@@ -119,14 +135,6 @@ function Index() {
               e.target.value = "";
             }}
           />
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            aria-label="Upload a form"
-            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-paper transition-transform hover:scale-105 sm:w-20"
-          >
-            <Upload className="h-6 w-6" />
-          </button>
 
           <button
             type="button"

@@ -200,9 +200,17 @@
 .panel-is-open .demo-site { margin-right: var(--panel-width); }
 .paperwise-panel { width: var(--panel-width); animation: panel-arrive .35s ease-out both; }
 .guided-field { outline: 2px solid color-mix(in oklab, var(--primary) 30%, transparent); outline-offset: 7px; border-radius: 3px; }
-.receptionist-head { width: 26px; height: 26px; border-radius: 50%; background: var(--primary); margin: 0 auto 5px; }
-.receptionist-body { width: 42px; height: 38px; border-radius: 18px 18px 3px 3px; background: var(--primary); }
+.reception-scene { height: 260px; }
+.receptionist-head { position: relative; width: 40px; height: 40px; border-radius: 50%; background: var(--primary); margin: 0 auto 6px; }
+.receptionist-body { width: 54px; height: 44px; border-radius: 22px 22px 3px 3px; background: var(--primary); }
+.receptionist-mouth { position: absolute; width: 14px; height: 7px; left: 13px; bottom: 9px; border-radius: 50%; background: var(--primary-foreground); animation: receptionist-talk .38s ease-in-out infinite alternate; }
+.receptionist-ear { position: absolute; width: 23px; height: 29px; right: -8px; top: 5px; color: var(--primary-foreground); stroke-width: 2.5; animation: receptionist-listen 1.1s ease-in-out infinite; }
+.receptionist-listening .receptionist-head { transform: rotate(-8deg); }
+.reception-bubble { left: 16px; right: 98px; top: 16px; bottom: 80px; }
+.reception-bubble-content { height: 100%; overflow-y: auto; overflow-wrap: anywhere; }
 .reception-bubble::after { content: ''; position: absolute; right: -9px; bottom: 14px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid var(--paper); }
+@keyframes receptionist-talk { 0% { transform: scaleY(.35) scaleX(1.1); } 100% { transform: scaleY(1.5) scaleX(.85); } }
+@keyframes receptionist-listen { 0%, 100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(4deg) scale(1.12); } }
 .demo-envelope-sheet { position: absolute; width: 17px; height: 22px; border: 1px solid var(--border); background: var(--paper); animation: demo-sheet 1.1s ease-in both; }
 .demo-envelope-seal { animation: envelope-seal .35s 1.1s ease-out both; }
 @keyframes demo-sheet { from { transform: translateY(-24px); opacity: 1; } to { transform: translateY(0); opacity: 0; } }
@@ -211,9 +219,8 @@
 @media (max-width: 700px) {
   .panel-is-open .demo-site { margin-right: 0; }
   .paperwise-panel { width: min(360px, 92vw); }
-  .reception-scene { height: 160px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .demo-site { transition: none; }
-  .paperwise-panel, .demo-envelope-sheet, .demo-envelope-seal, .sheet-drop, .flap-close, .envelope-seal, .stamp-pop { animation: none; }
+  .paperwise-panel, .demo-envelope-sheet, .demo-envelope-seal, .sheet-drop, .flap-close, .envelope-seal, .stamp-pop, .receptionist-mouth, .receptionist-ear { animation: none; }
 }

@@ -97,7 +97,7 @@ function Session() {
         </section>
 
         {/* Conversation */}
-        <section className="flex flex-col rounded-2xl bg-card p-6 shadow-paper">
+        <section className="flex flex-col rounded-2xl bg-card/90 p-6 shadow-paper backdrop-blur-sm">
           <div className="flex-1 space-y-4 overflow-y-auto">
             {chat.map((m, i) => (
               <div key={i} className={m.who === "me" ? "flex justify-end" : ""}>
@@ -124,6 +124,7 @@ function Session() {
             </div>
           </div>
         </section>
+      </div>
       </div>
     </div>
   );

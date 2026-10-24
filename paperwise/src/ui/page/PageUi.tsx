@@ -149,3 +149,90 @@ function Chip({ box, words }: { box: Box; words: (typeof WORDS)[Language] }) {
     <span className={`absolute -top-3 right-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap shadow ${tone}`}>{content}</span>
   );
 }
+
+const PROMPT_WORDS: Record<Language, { tag: string; title: string; yes: string; no: string; close: string }> = {
+  en: { tag: 'Form detected', title: 'Want help filling this out?', yes: 'Help me fill this', no: 'Not now', close: 'Close' },
+  fr: { tag: 'Formulaire détecté', title: 'Besoin d’aide pour le remplir ?', yes: 'Aidez-moi', no: 'Pas maintenant', close: 'Fermer' },
+};
+
+const GLASS =
+  'linear-gradient(135deg,rgba(255,255,255,.7),rgba(60,110,190,.45) 38%,rgba(44,79,134,.75) 72%,rgba(70,160,140,.65))';
+const GLASS_SHADOW =
+  'inset 2px 2px 5px rgba(255,255,255,.65),inset -3px -4px 7px rgba(44,79,134,.6),0 4px 9px rgba(44,79,134,.25)';
+
+/** The "Form detected" pop-up: the little glass guy talking next to a speech bubble. */
+export function FormPrompt({
+  language,
+  onOpen,
+  onIntent,
+  onDismiss,
+}: {
+  language: Language;
+  onOpen: () => void;
+  onIntent: () => void;
+  onDismiss: () => void;
+}) {
+  const w = PROMPT_WORDS[language];
+  return (
+    <div
+      role="dialog"
+      aria-label={w.title}
+      className="pw-prompt-in pointer-events-auto fixed right-6 bottom-6 z-[2147483647] flex items-end gap-3 font-sans text-foreground"
+    >
+      <style>{`@keyframes pw-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes pw-talk{0%{transform:scaleY(.35) scaleX(1.1)}100%{transform:scaleY(1.5) scaleX(.85)}}
+.pw-prompt-in{animation:pw-in .5s cubic-bezier(.2,.8,.2,1) both}
+.pw-mouth{animation:pw-talk .38s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.pw-prompt-in,.pw-mouth{animation:none}}`}</style>
+      <div
+        className="glass-light relative w-[270px] rounded-2xl bg-card/80 px-[18px] py-4 shadow-paper"
+        onPointerEnter={onIntent}
+      >
+        <button
+          type="button"
+          aria-label={w.close}
+          onClick={onDismiss}
+          className="absolute top-2 right-2.5 cursor-pointer text-lg leading-none text-muted-foreground hover:text-foreground"
+        >
+          ×
+        </button>
+        <div className="text-[10px] font-bold tracking-[.08em] text-primary uppercase">{w.tag}</div>
+        <div className="mt-1 mr-6 mb-3.5 font-display text-lg leading-snug font-semibold">{w.title}</div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            onFocus={onIntent}
+            className="flex-1 cursor-pointer rounded-[10px] bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {w.yes}
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="cursor-pointer rounded-[10px] px-3 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground"
+          >
+            {w.no}
+          </button>
+        </div>
+        <span
+          aria-hidden="true"
+          className="absolute -right-2.5 bottom-7 border-y-8 border-l-[10px] border-y-transparent border-l-card"
+        />
+      </div>
+      <div aria-hidden="true" className="shrink-0">
+        <div
+          className="relative mx-auto mb-1.5 size-10 rounded-full"
+          style={{ background: GLASS, boxShadow: GLASS_SHADOW, border: '1px solid rgba(255,255,255,.75)' }}
+        >
+          <span className="absolute top-1.5 left-1.5 h-[7px] w-3.5 -rotate-[35deg] rounded-full bg-white/80" />
+          <span className="pw-mouth absolute bottom-[9px] left-[13px] h-[7px] w-3.5 rounded-full bg-white" />
+        </div>
+        <div
+          className="h-11 w-[54px] rounded-t-[22px] rounded-b-[3px]"
+          style={{ background: GLASS, boxShadow: GLASS_SHADOW, border: '1px solid rgba(255,255,255,.75)' }}
+        />
+      </div>
+    </div>
+  );
+}

@@ -2,7 +2,7 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import ReactDOM from 'react-dom/client';
 import { ACTIVE_ATTR, FIELD_ATTR, STATUS_ATTR } from '@/shared/config';
 import type { FieldStatus } from '@/shared/contract';
-import { FloatingButton, HighlightLayer, type Box, type FlashBox } from '@/ui/page/PageUi';
+import { FloatingButton, FormPrompt, HighlightLayer, type Box, type FlashBox } from '@/ui/page/PageUi';
 import pageCss from '@/ui/styles/page.css?inline';
 import logo from '@/ui/assets/logo.png?inline';
 import { pageUi } from './page-ui-store';
@@ -69,10 +69,19 @@ function PageUi({
   const ui = useSyncExternalStore(pageUi.subscribe, pageUi.get);
   const showButton = useSyncExternalStore(buttonStore.subscribe, buttonStore.get);
   const { boxes, flashes } = useTrackedFields(ui.flashes);
+  // First appearance on a page: the pop-up. Opened or dismissed → the compact pill.
+  const [prompting, setPrompting] = useState(true);
+  const open = () => {
+    setPrompting(false);
+    callbacks.open();
+  };
   return (
     <>
       <HighlightLayer boxes={boxes} flashes={flashes} language={ui.language} />
-      {showButton && <FloatingButton logo={logo} progress={ui.progress} language={ui.language} onOpen={callbacks.open} onIntent={callbacks.intent} />}
+      {showButton && prompting && (
+        <FormPrompt language={ui.language} onOpen={open} onIntent={callbacks.intent} onDismiss={() => setPrompting(false)} />
+      )}
+      {showButton && !prompting && <FloatingButton logo={logo} progress={ui.progress} language={ui.language} onOpen={callbacks.open} onIntent={callbacks.intent} />}
     </>
   );
 }

@@ -1,6 +1,6 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Mic, Send, Settings } from "lucide-react";
-import { useState } from "react";
+import { Mic, Send, Settings, Upload } from "lucide-react";
+import { useRef, useState } from "react";
 import receptionAero from "@/assets/reception-aero.jpg";
 
 export const Route = createFileRoute("/")({
@@ -18,20 +18,58 @@ export const Route = createFileRoute("/")({
 function Index() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
+  const [dragging, setDragging] = useState(false);
+  const fileInput = useRef<HTMLInputElement>(null);
 
   const start = () => navigate({ to: "/session" });
 
+  const startWithFile = (file?: File | null) => {
+    if (file) {
+      try {
+        sessionStorage.setItem("paperwise-form-name", file.name);
+      } catch {
+        /* storage unavailable — still start the session */
+      }
+    }
+    navigate({ to: "/session" });
+  };
+
   return (
-    <div className="relative min-h-screen overflow-hidden">
+    <div
+      className="relative min-h-screen overflow-hidden"
+      onDragOver={(e) => {
+        e.preventDefault();
+        setDragging(true);
+      }}
+      onDragLeave={(e) => {
+        if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+        setDragging(false);
+      }}
+      onDrop={(e) => {
+        e.preventDefault();
+        setDragging(false);
+        startWithFile(e.dataTransfer.files?.[0]);
+      }}
+    >
       {/* The reception room */}
       <img
         src={receptionAero}
-        alt="A glossy aqua-blue receptionist figure waving behind a curved white desk in a bright glass office with a Paperwise sign on the wall"
+        alt="A glossy aqua-blue faceless receptionist behind a curved white desk in a bright glass office, under a Paperwise wall sign"
         width={1920}
         height={1280}
         className="absolute inset-0 h-full w-full object-cover object-[25%_center] md:object-center"
       />
       <div aria-hidden className="absolute inset-0 bg-foreground/10" />
+
+      {/* Highlight while dragging a form over the page */}
+      {dragging && (
+        <div className="absolute inset-0 z-40 flex items-center justify-center bg-background/60 backdrop-blur-sm">
+          <div className="flex flex-col items-center gap-3 rounded-3xl border-2 border-dashed border-primary bg-card/90 px-10 py-8 shadow-paper">
+            <Upload className="h-10 w-10 text-primary" />
+            <p className="font-display text-xl">Drop your form here</p>
+          </div>
+        </div>
+      )}
 
       <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
         <h1 className="sr-only">Paperwise</h1>
@@ -49,7 +87,7 @@ function Index() {
         </div>
         <div />
 
-        {/* Bottom row: talk to the receptionist */}
+        {/* Bottom row: bring a form, or talk to the receptionist */}
         <form
           className="mx-auto flex w-full max-w-5xl items-stretch gap-3"
           onSubmit={(e) => {
@@ -69,6 +107,26 @@ function Index() {
               <Send className="h-5 w-5" />
             </button>
           </label>
+
+          {/* Upload your form — opens a file picker, then starts the session */}
+          <input
+            ref={fileInput}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,image/*,application/pdf"
+            className="hidden"
+            onChange={(e) => {
+              startWithFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <button
+            type="button"
+            onClick={() => fileInput.current?.click()}
+            aria-label="Upload a form"
+            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-paper transition-transform hover:scale-105 sm:w-20"
+          >
+            <Upload className="h-6 w-6" />
+          </button>
 
           <button
             type="button"

@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Mic, Send, Settings } from "lucide-react";
-import { useRef, useState } from "react";
-import receptionAero from "@/assets/reception-aero.jpg";
+import { useEffect, useRef, useState } from "react";
+import receptionAeroDoor from "@/assets/reception-aero-door.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,10 +15,19 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
+// The glowing door's position inside the 1920x1280 scene, in percent.
+const DOOR = { x: 77.8, y: 12.5, w: 16.5, h: 62 };
+const IMG_W = 1920;
+const IMG_H = 1280;
+
+type Box = { left: number; top: number; width: number; height: number };
+
 function Index() {
   const navigate = useNavigate();
   const [message, setMessage] = useState("");
   const [dragging, setDragging] = useState(false);
+  const [doorBox, setDoorBox] = useState<Box | null>(null);
+  const sceneRef = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
 
   const start = () => navigate({ to: "/session" });
@@ -34,8 +43,36 @@ function Index() {
     navigate({ to: "/session" });
   };
 
+  // Map the door's position in the photo to on-screen pixels, accounting for
+  // how object-cover crops the image (25%→70% offset on small screens, center on md+).
+  useEffect(() => {
+    const compute = () => {
+      const el = sceneRef.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      const posX = window.matchMedia("(min-width: 768px)").matches ? 0.5 : 0.7;
+      const s = Math.max(r.width / IMG_W, r.height / IMG_H);
+      const dw = IMG_W * s;
+      const dh = IMG_H * s;
+      const x0 = (r.width - dw) * posX;
+      const y0 = (r.height - dh) * 0.5;
+      setDoorBox({
+        left: x0 + (DOOR.x / 100) * dw,
+        top: y0 + (DOOR.y / 100) * dh,
+        width: (DOOR.w / 100) * dw,
+        height: (DOOR.h / 100) * dh,
+      });
+    };
+    compute();
+    window.addEventListener("resize", compute);
+    return () => window.removeEventListener("resize", compute);
+  }, []);
+
+  const labelLeft = doorBox ? Math.min(Math.max(doorBox.left + doorBox.width / 2, 110), (sceneRef.current?.clientWidth ?? 9999) - 110) : 0;
+
   return (
     <div
+      ref={sceneRef}
       className="relative min-h-screen overflow-hidden"
       onDragOver={(e) => {
         e.preventDefault();
@@ -51,13 +88,13 @@ function Index() {
         startWithFile(e.dataTransfer.files?.[0]);
       }}
     >
-      {/* The reception room */}
+      {/* The reception room, door included */}
       <img
-        src={receptionAero}
-        alt="A glossy aqua-blue faceless receptionist behind a curved white desk in a bright glass office, under a Paperwise wall sign"
+        src={receptionAeroDoor}
+        alt="A glossy aqua-blue faceless receptionist behind a curved white desk under a Paperwise wall sign, next to a glowing frosted-glass door"
         width={1920}
         height={1280}
-        className="absolute inset-0 h-full w-full object-cover object-[25%_center] md:object-center"
+        className="absolute inset-0 h-full w-full object-cover object-[70%_center] md:object-center"
       />
       <div aria-hidden className="absolute inset-0 bg-foreground/10" />
 
@@ -65,7 +102,7 @@ function Index() {
         <h1 className="sr-only">Paperwise</h1>
 
         {/* Speech bubble, anchored beside the receptionist figure */}
-        <div className="absolute left-[4%] top-[6%] max-w-xs md:left-[22%] md:top-[10%] md:max-w-sm lg:left-[30%] lg:top-[20%]">
+        <div className="absolute left-[4%] top-[6%] max-w-xs md:left-[22%] md:top-[10%] md:max-w-sm lg:left-[28%] lg:top-[22%]">
           <div className="relative rounded-2xl bg-card/70 p-5 shadow-paper backdrop-blur-md">
             {/* bubble tail pointing at the receptionist */}
             <div aria-hidden className="absolute -right-3 top-8 h-6 w-6 rotate-45 rounded-tr-md bg-card/70" />
@@ -77,31 +114,42 @@ function Index() {
         </div>
         <div />
 
-        {/* The door: bring your form into the office through here */}
-        <div className="absolute bottom-[34%] right-[4%] hidden flex-col items-center sm:flex md:right-[5%] lg:bottom-[36%]">
-          {/* glow spilling onto the wall around the door */}
-          <div
-            aria-hidden
-            className={`pointer-events-none absolute inset-[-18%] rounded-full bg-primary/25 blur-2xl transition-opacity duration-300 ${dragging ? "opacity-100" : "opacity-60"}`}
-          />
-          <button
-            type="button"
-            onClick={() => fileInput.current?.click()}
-            aria-label="Bring your form: upload a file to start"
-            className={`relative block h-[34vh] w-[16vh] rounded-t-xl border-2 bg-gradient-to-b from-card/50 via-primary/10 to-primary/25 shadow-paper backdrop-blur-[2px] transition-all duration-300 hover:scale-[1.04] hover:border-primary/70 ${
-              dragging ? "scale-105 border-primary" : "border-card/90"
-            }`}
-          >
-            {/* light shining through the frosted glass door */}
-            <span aria-hidden className="absolute inset-x-2 top-2 bottom-5 rounded-lg bg-gradient-to-b from-primary/40 via-primary/10 to-primary/5 blur-[6px]" />
-            <span aria-hidden className="absolute inset-x-2 top-2 bottom-5 rounded-lg border border-card/70 bg-card/35" />
-            {/* handle */}
-            <span aria-hidden className="absolute right-2.5 top-1/2 h-2 w-2 -translate-y-1/2 rounded-full bg-card shadow-sm" />
-          </button>
-          <span className="mt-2 whitespace-nowrap rounded-full bg-card/85 px-3 py-1 text-xs text-foreground shadow-paper backdrop-blur-sm">
-            {dragging ? "Drop your form here" : "Bring your form"}
-          </span>
-        </div>
+        {/* Invisible click zone over the physical door in the scene */}
+        {doorBox && (
+          <>
+            <input
+              ref={fileInput}
+              type="file"
+              accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,image/*,application/pdf"
+              className="hidden"
+              onChange={(e) => {
+                startWithFile(e.target.files?.[0]);
+                e.target.value = "";
+              }}
+            />
+            <button
+              type="button"
+              onClick={() => fileInput.current?.click()}
+              aria-label="Bring your form: upload a file to start"
+              style={{ left: doorBox.left, top: doorBox.top, width: doorBox.width, height: doorBox.height }}
+              className={`group absolute z-10 rounded-lg outline-none transition-colors duration-300 hover:bg-primary/10 ${
+                dragging ? "bg-primary/20 ring-2 ring-inset ring-primary" : ""
+              }`}
+            >
+              {/* soft glow when you hover the door */}
+              <span
+                aria-hidden
+                className="pointer-events-none absolute inset-[-10%] rounded-full bg-primary/30 opacity-0 blur-2xl transition-opacity duration-300 group-hover:opacity-100"
+              />
+            </button>
+            <span
+              style={{ left: labelLeft, top: doorBox.top + doorBox.height + 10 }}
+              className="absolute z-10 -translate-x-1/2 whitespace-nowrap rounded-full bg-card/85 px-3 py-1 text-xs text-foreground shadow-paper backdrop-blur-sm"
+            >
+              {dragging ? "Drop your form here" : "Bring your form"}
+            </span>
+          </>
+        )}
 
         {/* Bottom row: talk to the receptionist */}
         <form
@@ -123,18 +171,6 @@ function Index() {
               <Send className="h-5 w-5" />
             </button>
           </label>
-
-          {/* Upload lives in the door now */}
-          <input
-            ref={fileInput}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png,.heic,.doc,.docx,image/*,application/pdf"
-            className="hidden"
-            onChange={(e) => {
-              startWithFile(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
 
           <button
             type="button"

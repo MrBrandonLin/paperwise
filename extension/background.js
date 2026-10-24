@@ -1,5 +1,10 @@
-chrome.action.onClicked.addListener(async (tab) => {
-  if (!tab.id) return;
-  await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ['content.css'] });
-  await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ['content.js'] });
+async function openPanel(tabId) {
+  await chrome.scripting.insertCSS({ target: { tabId }, files: ['content.css'] });
+  await chrome.scripting.executeScript({ target: { tabId }, files: ['content.js'] });
+}
+
+chrome.action.onClicked.addListener(tab => { if (tab.id) openPanel(tab.id); });
+
+chrome.runtime.onMessage.addListener((msg, sender) => {
+  if (msg?.type === 'paperwise-open' && sender.tab?.id) openPanel(sender.tab.id);
 });

@@ -1,11 +1,13 @@
 {
   "manifest_version": 3,
   "name": "Paperwise — Form Companion",
-  "version": "0.1.0",
-  "description": "A side panel that walks you through any website form, one question at a time.",
+  "version": "0.2.0",
+  "description": "Spots forms on any website and walks you through them, one question at a time.",
   "permissions": ["activeTab", "scripting"],
+  "host_permissions": ["<all_urls>"],
   "action": { "default_title": "Open Paperwise" },
   "background": { "service_worker": "background.js" },
+  "content_scripts": [{ "matches": ["<all_urls>"], "js": ["detect.js"], "css": ["prompt.css"], "run_at": "document_idle" }],
   "web_accessible_resources": [{ "resources": ["icon.png"], "matches": ["<all_urls>"] }],
   "icons": { "48": "icon.png", "128": "icon.png" }
 }

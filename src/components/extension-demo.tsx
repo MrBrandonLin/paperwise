@@ -1,13 +1,18 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Building2, Check, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { Link } from '@tanstack/react-router';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, Briefcase, Building2, Landmark, LayoutGrid, Stethoscope, Check, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { demoFields, downloadDemoPdf, nextEmptyField, type DemoValues } from '@/lib/extension-demo';
+import { downloadDemoPdf, nextEmptyField, sectionsOf, type DemoScenario, type DemoValues } from '@/lib/extension-demo';
 import office from '@/assets/office-arch.jpg';
 
 type Message = { role: 'assistant' | 'user'; text: string };
 
-export function ExtensionDemo() {
+const hostIcons = { home: Building2, clinic: Stethoscope, briefcase: Briefcase, landmark: Landmark };
+
+export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
+  const demoFields = scenario.fields;
+  const HostIcon = hostIcons[scenario.icon];
   const [open, setOpen] = useState(true);
   const [values, setValues] = useState<DemoValues>({});
   const [active, setActive] = useState(0);
@@ -54,7 +59,7 @@ export function ExtensionDemo() {
       return;
     }
     if (field.type === 'number' && (!Number.isFinite(Number(text)) || Number(text) < 0)) {
-      setBubbleReply('Please enter your monthly income as a positive number.');
+      setBubbleReply(`Please enter ${field.label.toLowerCase()} as a positive number.`);
       return;
     }
     const updated = { ...values, [field.id]: text };
@@ -62,7 +67,7 @@ export function ExtensionDemo() {
     setMessages(previous => [...previous, { role: 'user', text }]);
     setAnswer('');
     setSeal('idle');
-    const next = nextEmptyField(updated);
+    const next = nextEmptyField(updated, demoFields);
     setBubbleReply(next >= 0 ? `Added to ${field.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
     if (next >= 0) setActive(next);
     setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
@@ -73,7 +78,7 @@ export function ExtensionDemo() {
     setSeal('sealing');
     try {
       await new Promise(resolve => setTimeout(resolve, 1700));
-      await downloadDemoPdf(values);
+      await downloadDemoPdf(values, scenario);
       setSeal('ready');
     } catch {
       setSeal('idle');
@@ -83,27 +88,27 @@ export function ExtensionDemo() {
 
   return <div className={`extension-demo min-h-screen font-sans ${open ? 'panel-is-open' : ''}`}>
     <div className="demo-site min-h-screen bg-background">
-      <div className="flex items-center justify-between border-b border-border bg-secondary px-5 py-2 text-xs text-muted-foreground sm:px-10"><span className="flex items-center gap-2"><Globe2 className="size-3.5" /> Sample website</span><span>Paperwise extension demo</span></div>
+      <div className="flex items-center justify-between border-b border-border bg-secondary px-5 py-2 text-xs text-muted-foreground sm:px-10"><span className="flex items-center gap-2"><Globe2 className="size-3.5" /> Sample website · {scenario.context}</span><Link to="/" className="flex items-center gap-1.5 font-bold text-primary hover:underline"><LayoutGrid className="size-3.5" /> All demos</Link></div>
       <header className="flex h-22 items-center justify-between border-b border-border bg-paper px-6 sm:px-12">
-        <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-md bg-host text-host-foreground"><Building2 className="size-6" /></div><div><p className="text-lg font-bold">Northline<span className="font-normal"> residences</span></p><p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">A place to call yours</p></div></div>
+        <div className="flex items-center gap-3"><div className="flex size-10 items-center justify-center rounded-md bg-host text-host-foreground"><HostIcon className="size-6" /></div><div><p className="text-lg font-bold">{scenario.brand}<span className="font-normal">{scenario.brandSuffix}</span></p><p className="text-[10px] uppercase tracking-[0.16em] text-muted-foreground">{scenario.tagline}</p></div></div>
         <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex"><LockKeyhole className="size-3.5" /> Secure application</span>
       </header>
       <main className="mx-auto max-w-3xl px-6 py-9 sm:px-12 sm:py-12">
-        <div className="mb-7 flex items-center gap-2 text-xs text-muted-foreground"><span>Residences</span><span>/</span><span>Apply</span><span>/</span><span className="text-foreground">Rental application</span></div>
-        <div className="flex items-start justify-between gap-4"><div><p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-host">YOUR NEXT CHAPTER</p><h1 className="font-display text-4xl leading-tight">Rental application</h1><p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">Tell us a little about yourself. We’ll use this information to review your application for a new home.</p></div><span className="mt-1 shrink-0 rounded border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Demo</span></div>
+        <div className="mb-7 flex items-center gap-2 text-xs text-muted-foreground">{scenario.breadcrumb.map(crumb => <span key={crumb} className="contents"><span>{crumb}</span><span>/</span></span>)}<span className="text-foreground">{scenario.title}</span></div>
+        <div className="flex items-start justify-between gap-4"><div><p className="mb-3 text-xs font-bold uppercase tracking-[0.15em] text-host">{scenario.eyebrow}</p><h1 className="font-display text-4xl leading-tight">{scenario.title}</h1><p className="mt-3 max-w-lg text-sm leading-relaxed text-muted-foreground">{scenario.intro}</p></div><span className="mt-1 shrink-0 rounded border border-border px-2.5 py-1 text-[10px] font-bold uppercase tracking-wider text-muted-foreground">Demo</span></div>
         <div className="my-8 flex items-center gap-3 border-y border-border py-4 text-xs"><span className="flex size-6 items-center justify-center rounded-full bg-host text-host-foreground">1</span><span className="font-bold">Applicant details</span><div className="h-px flex-1 bg-border" /><span className="flex size-6 items-center justify-center rounded-full bg-muted text-muted-foreground">2</span><span className="text-muted-foreground">Review</span></div>
-        {submitted ? <div className="py-16 text-center"><ShieldCheck className="mx-auto size-12 text-host" /><h2 className="mt-5 font-display text-3xl">Application reviewed</h2><p className="mt-3 text-sm text-muted-foreground">This is a demo. Nothing has been sent to a property team.</p><Button variant="outline" className="mt-6" onClick={() => setSubmitted(false)}><ArrowLeft /> Back to application</Button></div> : <form onSubmit={event => { event.preventDefault(); setSubmitted(true); }}>
-          {['Personal information', 'Residential history', 'Employment & income'].map((section, sectionIndex) => <section key={section} className="mb-8">
+        {submitted ? <div className="py-16 text-center"><ShieldCheck className="mx-auto size-12 text-host" /><h2 className="mt-5 font-display text-3xl">{scenario.doneTitle}</h2><p className="mt-3 text-sm text-muted-foreground">{scenario.doneNote}</p><Button variant="outline" className="mt-6" onClick={() => setSubmitted(false)}><ArrowLeft /> Back to form</Button></div> : <form onSubmit={event => { event.preventDefault(); setSubmitted(true); }}>
+          {sectionsOf(demoFields).map((section, sectionIndex) => <section key={section} className="mb-8">
             <h2 className="mb-5 flex items-center gap-3 text-base font-bold"><span className="text-xs font-normal text-muted-foreground">0{sectionIndex + 1}</span>{section}</h2>
-            <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2">{demoFields.map((item, index) => item.section === section && <div key={item.id} className={`${item.id === 'name' || item.id === 'address' ? 'sm:col-span-2' : ''} ${open && active === index && !finished ? 'guided-field' : ''}`}>
+            <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2">{demoFields.map((item, index) => item.section === section && <div key={item.id} className={`${item.wide ? 'sm:col-span-2' : ''} ${open && active === index && !finished ? 'guided-field' : ''}`}>
               <label htmlFor={`form-${item.id}`} className="mb-2 flex min-h-5 flex-wrap items-center justify-between gap-1 text-xs font-bold">{item.label}<span>{open && active === index && !finished ? <span className="flex items-center gap-1 text-[10px] font-bold text-primary"><Sparkles className="size-3" />Paperwise</span> : values[item.id]?.trim() ? <Check className="size-3.5 text-host" /> : <span className="font-normal text-muted-foreground">Required</span>}</span></label>
               <Input id={`form-${item.id}`} type={item.type} min={item.type === 'number' ? 0 : undefined} required value={values[item.id] || ''} placeholder={item.placeholder} onFocus={() => { setActive(index); setAnswer(''); setBubbleReply(''); }} onChange={event => { setValues(previous => ({ ...previous, [item.id]: event.target.value })); setSeal('idle'); }} className="h-11 rounded bg-paper text-sm shadow-none" />
-              {item.id === 'income' && <p className="mt-2 text-[11px] text-muted-foreground">Before taxes and deductions, in USD.</p>}
+              {item.hint && <p className="mt-2 text-[11px] text-muted-foreground">{item.hint}</p>}
             </div>)}</div>
           </section>)}
-          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your information stays in this demo page. No application is submitted.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">Review application <ArrowRight /></Button></div></div>
+          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your information stays in this demo page. Nothing is submitted.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">{scenario.submitLabel} <ArrowRight /></Button></div></div>
         </form>}
-        <footer className="mt-12 border-t border-border pt-5 text-[11px] text-muted-foreground">© Northline residences · Fictional property website</footer>
+        <footer className="mt-12 border-t border-border pt-5 text-[11px] text-muted-foreground">© {scenario.brand}{scenario.brandSuffix} · Fictional website</footer>
       </main>
     </div>
 

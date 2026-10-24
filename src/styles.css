@@ -309,3 +309,7 @@
 @media (min-width: 701px) {
   .panel-is-open .demo-site > div:first-child, .panel-is-open .demo-site > header { padding-right: 64px; }
 }
+
+.form-prompt { animation: form-prompt-in 0.5s cubic-bezier(0.2, 0.8, 0.2, 1) 0.6s both; }
+@keyframes form-prompt-in { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: none; } }
+@media (prefers-reduced-motion: reduce) { .form-prompt { animation: none; } }

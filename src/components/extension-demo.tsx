@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { Link } from '@tanstack/react-router';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Briefcase, Building2, Landmark, LayoutGrid, Stethoscope, Check, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, Briefcase, Building2, Landmark, LayoutGrid, Stethoscope, Check, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { downloadDemoPdf, nextEmptyField, sectionsOf, type DemoScenario, type DemoValues } from '@/lib/extension-demo';
+import { askPaperwiseAssistant } from '@/lib/assistant.functions';
 import office from '@/assets/office-arch.jpg';
 import logo from '@/assets/paperwise-logo.png.asset.json';
 
@@ -26,6 +27,8 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
   const [downloadError, setDownloadError] = useState('');
   const [bubbleReply, setBubbleReply] = useState('');
   const [speaking, setSpeaking] = useState(true);
+  const [thinking, setThinking] = useState(false);
+  const [pending, setPending] = useState<{ fieldId: string; value: string } | null>(null);
   const panelBody = useRef<HTMLDivElement>(null);
   const field = demoFields[active];
   const completed = demoFields.filter(item => values[item.id]?.trim()).length;
@@ -51,27 +54,57 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
     }
   }, [active, open, finished, submitted, field]);
 
-  function respond(event: FormEvent) {
+  async function respond(event: FormEvent) {
     event.preventDefault();
     const text = answer.trim();
-    if (!text || !field) return;
-    if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-      setBubbleReply('Please enter a complete email address, like name@example.com.');
-      return;
-    }
-    if (field.type === 'number' && (!Number.isFinite(Number(text)) || Number(text) < 0)) {
-      setBubbleReply(`Please enter ${field.label.toLowerCase()} as a positive number.`);
-      return;
-    }
-    const updated = { ...values, [field.id]: text };
-    setValues(updated);
+    if (!text || thinking) return;
     setMessages(previous => [...previous, { role: 'user', text }]);
     setAnswer('');
+    setPending(null);
+    setThinking(true);
+    setBubbleReply('');
+    try {
+      const result = await askPaperwiseAssistant({
+        data: {
+          scenarioTitle: scenario.title,
+          scenarioContext: scenario.context,
+          fields: demoFields.map(({ id, label, type, question, explanation }) => ({ id, label, type, question, explanation })),
+          values,
+          activeFieldId: finished ? null : (field?.id ?? null),
+          message: text,
+        },
+      });
+      setBubbleReply(result.reply);
+      if (result.proposal && !finished) setPending(result.proposal);
+    } catch (error) {
+      setBubbleReply(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setThinking(false);
+      setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    }
+  }
+
+  function applyProposal() {
+    if (!pending) return;
+    const target = demoFields.find(item => item.id === pending.fieldId);
+    if (!target) { setPending(null); return; }
+    if (target.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending.value)) {
+      setBubbleReply('That doesn’t look like a complete email address — could you check it?');
+      setPending(null);
+      return;
+    }
+    if (target.type === 'number' && (!Number.isFinite(Number(pending.value)) || Number(pending.value) < 0)) {
+      setBubbleReply(`Please give ${target.label.toLowerCase()} as a positive number.`);
+      setPending(null);
+      return;
+    }
+    const updated = { ...values, [target.id]: pending.value };
+    setValues(updated);
+    setPending(null);
     setSeal('idle');
     const next = nextEmptyField(updated, demoFields);
-    setBubbleReply(next >= 0 ? `Added to ${field.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
-    if (next >= 0) setActive(next);
-    setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    setBubbleReply(next >= 0 ? `Added to ${target.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
+    if (next >= 0) setActive(demoFields.findIndex(item => item.id === demoFields[next]!.id));
   }
 
   async function download() {
@@ -107,7 +140,7 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
               {item.hint && <p className="mt-2 text-[11px] text-muted-foreground">{item.hint}</p>}
             </div>)}</div>
           </section>)}
-          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your information stays in this demo page. Nothing is submitted.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">{scenario.submitLabel} <ArrowRight /></Button></div></div>
+          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your chat is processed by the Paperwise assistant to help you fill this form. Nothing is submitted to {scenario.brand}.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">{scenario.submitLabel} <ArrowRight /></Button></div></div>
         </form>}
         <footer className="mt-12 border-t border-border pt-5 text-[11px] text-muted-foreground">© {scenario.brand}{scenario.brandSuffix} · Fictional website</footer>
       </main>
@@ -115,24 +148,30 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
 
     {!open && <Button onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-30 h-14 gap-2 rounded-full pl-2 pr-5 shadow-paper glass-light text-foreground hover:bg-card/80"><img src={logo.url} alt="" className="size-7" /> Paperwise <span className="rounded-full bg-primary-foreground/15 px-2 py-0.5 text-xs">{completed}/{demoFields.length}</span></Button>}
     {open && <aside aria-label="Paperwise assistant" className={`paperwise-panel fixed inset-y-0 right-0 z-40 flex flex-col glass-panel ${largeText ? 'text-lg' : 'text-sm'}`}>
-      <header className="flex h-14 shrink-0 items-center justify-between border-b border-border px-5"><div className="flex items-center gap-2"><img src={logo.url} alt="" className="size-8 drop-shadow" /><span className="font-display text-lg">Paperwise</span><span className="rounded bg-secondary px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Demo</span></div><div className="flex gap-1"><Button variant="ghost" size="icon" aria-label="Settings" title="Settings" onClick={() => setSettings(!settings)}><Settings2 /></Button><Button variant="ghost" size="icon" aria-label="Close Paperwise" title="Close panel" onClick={() => setOpen(false)}><PanelRightClose /></Button></div></header>
+      <header className="flex h-14 shrink-0 items-center justify-between px-5"><div className="flex items-center gap-2"><img src={logo.url} alt="" className="size-8 drop-shadow" /><span className="font-display text-lg">Paperwise</span><span className="glass-light rounded-full px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-muted-foreground">Demo</span></div><div className="flex gap-1"><Button variant="ghost" size="icon" aria-label="Settings" title="Settings" onClick={() => setSettings(!settings)}><Settings /></Button><Button variant="ghost" size="icon" aria-label="Close Paperwise" title="Close panel" onClick={() => setOpen(false)}><PanelRightClose /></Button></div></header><div className="glass-hairline shrink-0" aria-hidden="true" />
       <div className="reception-scene relative shrink-0 overflow-hidden"><img src={office} alt="A quiet office through an arched doorway" className="absolute inset-0 size-full object-cover object-[50%_42%]" /><div className="absolute inset-0 bg-primary/10" /><div className="absolute bottom-0 inset-x-0 h-12 bg-card/50 border-t border-card/70 backdrop-blur-md" /><div className={`receptionist receptionist-${activity} absolute bottom-8 right-6`} role="img" aria-label={`Paperwise ${activity}`}><div className="receptionist-head">{activity === 'speaking' && <span className="receptionist-mouth" />}{activity === 'listening' && <Ear className="receptionist-ear" />}</div><div className="receptionist-body" /></div><div className="reception-bubble absolute rounded-xl glass-light"><div className="reception-bubble-content px-4 py-3" role="status" aria-live="polite"><span className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-primary">{finished ? 'Ready to review' : `Field ${active + 1} · ${field?.label}`}</span><p className={`leading-relaxed ${largeText ? 'text-lg' : 'text-sm'}`}>{bubbleText}</p></div></div><span className="absolute bottom-3 left-5 font-display text-sm text-primary">Paperwise</span><span className="absolute bottom-3 right-5 text-[10px] text-muted-foreground">{activity === 'listening' ? 'Listening' : activity === 'speaking' ? 'Speaking' : 'Ready'}</span></div>
-      <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3 text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><span className="size-1.5 rounded-full bg-host" /> Connected to this form</span><span className="font-bold text-primary">{completed}/{demoFields.length} complete</span></div>
-      {settings && <div className="border-b border-card/60 bg-card/40 px-5 py-4"><div className="mb-3 flex items-center justify-between font-bold">Preferences<Button variant="ghost" size="icon" aria-label="Close settings" onClick={() => setSettings(false)}><X /></Button></div><label className="flex items-center justify-between">Larger assistant text<input type="checkbox" checked={largeText} onChange={event => setLargeText(event.target.checked)} className="size-4 accent-primary" /></label><p className="mt-3 text-xs text-muted-foreground">Language: English</p></div>}
+      <div className="glass-light mx-4 mt-3 flex shrink-0 items-center justify-between rounded-xl px-4 py-2.5 text-xs [--glass-tint:var(--host)]"><span className="flex items-center gap-1.5 text-muted-foreground"><span className="size-1.5 rounded-full bg-host" /> Connected to this form</span><span className="font-bold text-primary">{completed}/{demoFields.length} complete</span></div>
+      {settings && <div className="glass-light mx-4 mb-2 rounded-xl px-4 py-3 [--glass-tint:var(--primary)]"><div className="mb-3 flex items-center justify-between font-bold">Preferences<Button variant="ghost" size="icon" aria-label="Close settings" onClick={() => setSettings(false)}><X /></Button></div><label className="flex items-center justify-between">Larger assistant text<input type="checkbox" checked={largeText} onChange={event => setLargeText(event.target.checked)} className="size-4 accent-primary" /></label><p className="mt-3 text-xs text-muted-foreground">Language: English</p></div>}
       <div ref={panelBody} className="min-h-0 flex-1 overflow-y-auto px-5">
-        <section className="voice-display" aria-label="Always-on microphone preview">
+        <section className="voice-display glass-light my-1 rounded-2xl px-4 py-5 [--glass-tint:var(--primary)]" aria-label="Always-on microphone preview">
           <div className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 font-bold text-primary"><Mic className="size-4" /><span className="size-1.5 rounded-full bg-host" />Mic always on</span><span className="text-[10px] text-muted-foreground">Demo</span></div>
           <div className="voice-waveform" role="img" aria-label="Animated voice loudness preview">{Array.from({ length: 35 }, (_, index) => <span key={index} className="voice-wave-bar" />)}</div>
           <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>Quiet</span><span>Voice level</span><span>Loud</span></div>
         </section>
         {messages.length > 0 && <p className="mb-3 text-[10px] uppercase tracking-wider text-muted-foreground">Your answers</p>}
-        {messages.map((message, index) => <div key={index} className="mb-3 ml-9 break-words rounded-xl glass-light px-3 py-2">{message.text}</div>)}
+        {messages.map((message, index) => <div key={index} className="mb-3 ml-9 break-words rounded-xl glass-light px-3 py-2 [--glass-tint:var(--primary)]">{message.text}</div>)}
       </div>
-      <div className="shrink-0 border-t border-border p-4">
-        {!finished && <form onSubmit={respond} className="flex items-center gap-2 rounded-xl glass-light p-2"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onChange={event => setAnswer(event.target.value)} placeholder="Type your answer…" className="h-10 min-w-0 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" /><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim()} className="shrink-0"><Send /></Button></form>}
-        <div className={`mt-3 flex items-center gap-3 rounded-lg border p-3 ${finished ? 'border-primary/30 bg-filled/50' : 'border-card/70 bg-card/40'}`}><div className={`relative flex size-10 shrink-0 items-center justify-center text-primary ${seal === 'sealing' ? 'demo-envelope-seal' : ''}`}>{seal === 'ready' ? <Check className="size-6" /> : <Mail className="size-6" />}{seal === 'sealing' && <span className="demo-envelope-sheet" />}</div><div className="min-w-0 flex-1"><p className="text-xs font-bold">{seal === 'sealing' ? 'Sealing your envelope…' : seal === 'ready' ? 'Your copy is downloaded' : 'Take your form with you'}</p><p className="mt-1 text-[10px] text-muted-foreground">{finished ? 'Your answers, saved as a PDF' : 'Available when all fields are filled'}</p></div><Button variant="ghost" size="icon" aria-label="Download form PDF" title="Download form PDF" disabled={!finished || seal === 'sealing'} onClick={download}><ArrowDownToLine /></Button></div>
+      <div className="shrink-0 p-4"><div className="glass-hairline mb-3" aria-hidden="true" />
+        {pending && !finished && <div className="glass-light mb-3 rounded-xl p-3 [--glass-tint:var(--primary)]" role="group" aria-label="Approve assistant suggestion">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Add to {demoFields.find(item => item.id === pending.fieldId)?.label}</p>
+          <p className="mt-1 break-words text-sm font-bold">{pending.value}</p>
+          <div className="mt-2 flex gap-2"><Button size="sm" onClick={applyProposal}><Check /> Add to form</Button><Button size="sm" variant="ghost" onClick={() => { setPending(null); setBubbleReply('No problem — nothing was added. What would you like instead?'); }}><X /> Not now</Button></div>
+        </div>}
+        {thinking && <p className="mb-2 flex items-center gap-2 text-xs text-muted-foreground" role="status"><Sparkles className="size-3.5 animate-pulse text-primary" /> Paperwise is thinking…</p>}
+        {!finished && <form onSubmit={respond} className="glass-light flex items-center gap-2 rounded-xl p-2 [--glass-tint:var(--primary)]"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onChange={event => setAnswer(event.target.value)} placeholder="Ask a question or give an answer…" disabled={thinking} className="h-10 min-w-0 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" /><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim() || thinking} className="shrink-0"><Send /></Button></form>}
+        <div className={`glass-light mt-3 flex items-center gap-3 rounded-xl p-3 ${finished ? '[--glass-tint:var(--host)]' : ''}`}><div className={`relative flex size-10 shrink-0 items-center justify-center text-primary ${seal === 'sealing' ? 'demo-envelope-seal' : ''}`}>{seal === 'ready' ? <Check className="size-6" /> : <Mail className="size-6" />}{seal === 'sealing' && <span className="demo-envelope-sheet" />}</div><div className="min-w-0 flex-1"><p className="text-xs font-bold">{seal === 'sealing' ? 'Sealing your envelope…' : seal === 'ready' ? 'Your copy is downloaded' : 'Take your form with you'}</p><p className="mt-1 text-[10px] text-muted-foreground">{finished ? 'Your answers, saved as a PDF' : 'Available when all fields are filled'}</p></div><Button variant="ghost" size="icon" aria-label="Download form PDF" title="Download form PDF" disabled={!finished || seal === 'sealing'} onClick={download}><ArrowDownToLine /></Button></div>
         {downloadError && <p role="alert" className="mt-2 text-xs text-destructive">{downloadError}</p>}
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="size-3" /> Demo only · No data leaves this page</p>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="size-3" /> Demo · Answers are reviewed by the assistant before you approve them</p>
       </div>
     </aside>}
   </div>;

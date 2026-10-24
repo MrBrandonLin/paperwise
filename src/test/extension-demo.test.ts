@@ -21,3 +21,29 @@ describe('Demo gallery', () => {
     expect(getScenario('nope')).toBeUndefined();
   });
 });
+
+import { buildAssistantPrompt, parseAssistantResult } from '@/lib/assistant.shared';
+describe('Gemini assistant', () => {
+  it('only proposes values for fields that exist on the form', () => {
+    const fields = [{ id: 'name' }, { id: 'email' }];
+    expect(parseAssistantResult({ reply: 'Got it.', fieldId: 'email', value: 'a@b.com' }, fields))
+      .toEqual({ reply: 'Got it.', proposal: { fieldId: 'email', value: 'a@b.com' } });
+    expect(parseAssistantResult({ reply: 'Got it.', fieldId: 'invented', value: 'x' }, fields)?.proposal).toBeNull();
+    expect(parseAssistantResult({ reply: 'Got it.', fieldId: 'name', value: '' }, fields)?.proposal).toBeNull();
+  });
+
+  it('rejects replies with no usable text', () => {
+    expect(parseAssistantResult({ fieldId: 'name', value: 'Alex' }, [{ id: 'name' }])).toBeNull();
+    expect(parseAssistantResult('not json', [{ id: 'name' }])).toBeNull();
+  });
+
+  it('never asks the model to invent personal data', () => {
+    const prompt = buildAssistantPrompt({
+      scenarioTitle: 'Rental application', scenarioContext: 'Housing',
+      fields: [{ id: 'name', label: 'Full legal name', type: 'text', question: '', explanation: '' }],
+      values: {}, activeFieldId: 'name', message: 'hi',
+    });
+    expect(prompt).toContain('Never invent personal data');
+    expect(prompt).toContain('"hi"');
+  });
+});

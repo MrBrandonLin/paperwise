@@ -1,7 +1,7 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Camera, FileUp, Mic, Languages, ShieldAlert, Eye } from "lucide-react";
-import officeArch from "@/assets/office-arch.jpg";
-import woodenTable from "@/assets/wooden-table.jpg";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { Mic, Send, Settings } from "lucide-react";
+import { useState } from "react";
+import receptionDesk from "@/assets/reception-desk.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -15,85 +15,79 @@ export const Route = createFileRoute("/")({
   component: Index,
 });
 
-const powers = [
-  { icon: Eye, title: "Understands the form", text: "Every field, what it really asks, and which ones only apply sometimes." },
-  { icon: ShieldAlert, title: "Explains anything", text: "Ask “what does this mean?” and get plain words — with high-stakes boxes flagged." },
-  { icon: Languages, title: "Translates both ways", text: "Speak your language. Answers land on the form in its language, side by side." },
-];
-
 function Index() {
+  const navigate = useNavigate();
+  const [message, setMessage] = useState("");
+
+  const start = () => navigate({ to: "/session" });
+
   return (
-    <div className="relative min-h-screen bg-background">
-      {/* Soft office room behind everything */}
-      <div aria-hidden className="fixed inset-0 bg-cover bg-center opacity-25 blur-[2px]" style={{ backgroundImage: `url(${officeArch})` }} />
-      <div aria-hidden className="fixed inset-0 bg-background/60" />
+    <div className="relative min-h-screen overflow-hidden">
+      {/* The reception room */}
+      <img
+        src={receptionDesk}
+        alt="A receptionist standing behind a curved wooden desk in a wood-panelled office"
+        width={1920}
+        height={1280}
+        className="absolute inset-0 h-full w-full object-cover object-[25%_center] md:object-center"
+      />
+      <div aria-hidden className="absolute inset-0 bg-foreground/10" />
 
-      <div className="relative flex min-h-screen flex-col">
-        <header className="mx-auto flex w-full max-w-7xl items-center justify-between px-6 py-6">
-          <span className="font-display text-2xl">Paperwise</span>
-          <button className="rounded-full border border-border bg-card/70 px-4 py-2 text-sm backdrop-blur-sm">Large text · Aa</button>
-        </header>
+      <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
+        {/* Top row: nameplate + greeting bubble */}
+        <div className="flex flex-wrap items-start gap-4 sm:gap-8">
+          <h1 className="rounded-xl bg-secondary/80 px-8 py-4 font-display text-3xl shadow-paper backdrop-blur-sm md:text-4xl">
+            Paperwise
+          </h1>
 
-        <main className="mx-auto w-full max-w-7xl px-6">
-          <section className="grid gap-8 py-6 md:py-10 lg:grid-cols-[1.1fr_1fr]">
-            {/* Walled arch into the office, with the pitch in front */}
-            <div className="relative overflow-hidden rounded-[2rem] shadow-paper">
-              <img
-                src={officeArch}
-                alt="An arched doorway opening into a quiet office"
-                width={1024}
-                height={1536}
-                className="h-[32rem] w-full object-cover md:h-[38rem]"
-              />
-              <div aria-hidden className="absolute inset-0 bg-gradient-to-t from-background via-background/45 to-transparent" />
-              <div className="absolute inset-x-0 bottom-0 p-8 md:p-10">
-                <h1 className="font-display text-5xl leading-[1.05] md:text-6xl">
-                  Any form.<br />Your language.<br /><span className="text-primary">Just talk.</span>
-                </h1>
-                <p className="mt-5 max-w-md text-lg text-muted-foreground">
-                  Snap a photo of your paperwork. Paperwise reads it, explains it, and fills it in while you watch.
-                </p>
-              </div>
-            </div>
+          <div className="relative max-w-sm rounded-2xl bg-card/85 p-5 shadow-paper backdrop-blur-sm">
+            {/* bubble tail pointing at the receptionist */}
+            <div aria-hidden className="absolute -left-3 top-8 h-6 w-6 rotate-45 rounded-bl-md bg-card/85" />
+            <p className="relative text-lg md:text-xl">Hi! What can I help you with?</p>
+            <p className="relative mt-1 text-sm text-muted-foreground">
+              Snap a photo of any form — I'll read it, explain it, and fill it in with you.
+            </p>
+          </div>
+        </div>
 
-            {/* Wooden table where the paperwork lands */}
-            <div className="relative flex items-center justify-center overflow-hidden rounded-[2rem] bg-cover bg-center p-6 shadow-paper sm:p-10" style={{ backgroundImage: `url(${woodenTable})` }}>
-              <div aria-hidden className="absolute inset-0 bg-foreground/10" />
-              <div className="relative w-full max-w-md -rotate-1 rounded-2xl bg-paper p-8 text-center shadow-paper transition-transform hover:rotate-0">
-                <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-full bg-accent text-accent-foreground">
-                  <FileUp className="h-7 w-7" />
-                </div>
-                <p className="mt-4 font-display text-2xl">Bring your form</p>
-                <p className="mt-1 text-muted-foreground">Photo or PDF — even a paper one.</p>
-                <div className="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-center">
-                  <Link to="/session" className="inline-flex items-center justify-center gap-2 rounded-full bg-primary px-6 py-3 text-primary-foreground">
-                    <Camera className="h-5 w-5" /> Take a photo
-                  </Link>
-                  <Link to="/session" className="inline-flex items-center justify-center gap-2 rounded-full border border-border bg-card px-6 py-3">
-                    <FileUp className="h-5 w-5" /> Upload file
-                  </Link>
-                </div>
-                <Link to="/session" className="mt-5 inline-block text-sm text-primary underline underline-offset-4">
-                  Try a sample rental application
-                </Link>
-              </div>
-            </div>
-          </section>
+        {/* Bottom row: talk to the receptionist */}
+        <form
+          className="mx-auto flex w-full max-w-5xl items-stretch gap-3"
+          onSubmit={(e) => {
+            e.preventDefault();
+            start();
+          }}
+        >
+          <label className="flex flex-1 items-center gap-3 rounded-2xl bg-card/95 px-5 shadow-paper backdrop-blur-sm">
+            <span className="sr-only">Type your question</span>
+            <input
+              value={message}
+              onChange={(e) => setMessage(e.target.value)}
+              placeholder="Type here, or tap the mic and just talk…"
+              className="h-14 w-full bg-transparent text-lg outline-none placeholder:text-muted-foreground"
+            />
+            <button type="submit" aria-label="Send" className="text-muted-foreground transition-colors hover:text-primary">
+              <Send className="h-5 w-5" />
+            </button>
+          </label>
 
-          <section className="grid gap-6 pb-24 md:grid-cols-3">
-            {powers.map((p) => (
-              <div key={p.title} className="rounded-2xl bg-secondary/90 p-6 shadow-paper backdrop-blur-sm">
-                <p.icon className="h-6 w-6 text-primary" />
-                <h3 className="mt-4 font-display text-xl">{p.title}</h3>
-                <p className="mt-2 text-muted-foreground">{p.text}</p>
-              </div>
-            ))}
-          </section>
-        </main>
+          <button
+            type="button"
+            onClick={start}
+            aria-label="Talk by voice"
+            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-paper transition-transform hover:scale-105 sm:w-20"
+          >
+            <Mic className="h-6 w-6" />
+          </button>
 
-        <footer className="flex items-center justify-center gap-2 pb-10 text-sm text-muted-foreground">
-          <Mic className="h-4 w-4" /> Voice-first, never voice-only. Captions always on.
-        </footer>
+          <button
+            type="button"
+            aria-label="Settings"
+            className="flex h-14 w-16 items-center justify-center rounded-2xl bg-card/95 text-muted-foreground shadow-paper backdrop-blur-sm transition-colors hover:text-foreground sm:w-20"
+          >
+            <Settings className="h-6 w-6" />
+          </button>
+        </form>
       </div>
     </div>
   );

@@ -58,7 +58,7 @@ export const demoScenarios: DemoScenario[] = [
     fileName: 'paperwise-patient-intake.pdf',
     fields: [
       { id: 'name', label: 'Patient full name', section: 'About you', type: 'text', wide: true, placeholder: 'First and last name', question: 'Let’s start with the patient’s full name.', explanation: 'Use the name that appears on your insurance card, if you have one.' },
-      { id: 'dob', label: 'Date of birth', section: 'About you', type: 'date', placeholder: 'MM/DD/YYYY', question: 'What is your date of birth?', explanation: 'The clinic uses this to match you with the right records.' },
+      { id: 'dob', label: 'Date of birth', section: 'About you', type: 'text', placeholder: 'MM/DD/YYYY', question: 'What is your date of birth?', explanation: 'The clinic uses this to match you with the right records.' },
       { id: 'phone', label: 'Phone number', section: 'About you', type: 'tel', placeholder: '(555) 000-0000', question: 'What number can the clinic call you at?', explanation: 'They may call to confirm or reschedule your appointment.' },
       { id: 'insurer', label: 'Insurance provider', section: 'Insurance', type: 'text', placeholder: 'Company name, or “none”', question: 'Who is your health insurance provider?', explanation: 'It’s the company name printed on your insurance card. If you don’t have insurance, say “none”.' },
       { id: 'member', label: 'Member ID', section: 'Insurance', type: 'text', placeholder: 'On the front of your card', question: 'What is the member ID on your insurance card?', explanation: 'A member ID is the personal number on your card that identifies you to the insurer.' },
@@ -91,7 +91,7 @@ export const demoScenarios: DemoScenario[] = [
     fields: [
       { id: 'name', label: 'Full legal name', section: 'Identity', type: 'text', wide: true, placeholder: 'As shown on your license', question: 'What is your full legal name?', explanation: 'Use your name exactly as printed on your current license.' },
       { id: 'license', label: 'Current license number', section: 'Identity', type: 'text', placeholder: 'e.g. D1234567', question: 'What is your current license number?', explanation: 'It’s usually labeled “DL” or “License no.” on the front of your card.' },
-      { id: 'dob', label: 'Date of birth', section: 'Identity', type: 'date', placeholder: 'MM/DD/YYYY', question: 'What is your date of birth?', explanation: 'It must match the date on your current license.' },
+      { id: 'dob', label: 'Date of birth', section: 'Identity', type: 'text', placeholder: 'MM/DD/YYYY', question: 'What is your date of birth?', explanation: 'It must match the date on your current license.' },
       { id: 'address', label: 'Residential address', section: 'Residency', type: 'text', wide: true, placeholder: 'Where you live, not a PO box', question: 'What is your home address?', explanation: 'This must be where you actually live. A PO box can’t be used here.' },
       { id: 'status', label: 'Residency status', section: 'Residency', type: 'text', wide: true, placeholder: 'e.g. U.S. citizen, permanent resident', question: 'What is your residency status?', explanation: 'This asks whether you are a citizen, a permanent resident, or here on another visa. Answer what is true for you.' },
     ],

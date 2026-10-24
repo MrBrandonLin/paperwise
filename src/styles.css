@@ -211,7 +211,7 @@
 @media (max-width: 700px) {
   .panel-is-open .demo-site { margin-right: 0; }
   .paperwise-panel { width: min(360px, 92vw); }
-  .reception-scene { height: 120px; }
+  .reception-scene { height: 160px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .demo-site { transition: none; }

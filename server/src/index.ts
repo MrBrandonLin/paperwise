@@ -1,0 +1,37 @@
+import { serve } from '@hono/node-server';
+import { readdirSync, readFileSync } from 'node:fs';
+import type { Language, ScanResult } from '../../src/shared/contract.ts';
+import { app } from './app.ts';
+import { env } from './env.ts';
+import { streamFormMap } from './form-map.ts';
+import { geminiConfigured, warmUpGemini } from './gemini.ts';
+
+serve({ fetch: app.fetch, port: env.port }, (info) => {
+  console.log(`Paperwise backend on http://localhost:${info.port}`);
+  console.log(`Test form:          http://localhost:${info.port}/test/rental.html`);
+  console.log(`React test form:    http://localhost:${info.port}/test/rental-react.html`);
+  void warmUp();
+});
+
+/**
+ * Speed: open the connection to Gemini now (TLS handshake off the first user request), then
+ * pre-build the demo forms' maps in both languages. Already cached (disk) = no call at all.
+ * Set PREWARM=0 to skip the pre-build.
+ */
+async function warmUp() {
+  if (!geminiConfigured()) return;
+  await warmUpGemini();
+  if (process.env.PREWARM === '0') return;
+  const dir = new URL('../test-pages/scans/', import.meta.url);
+  for (const file of readdirSync(dir).filter((f) => f.endsWith('.json'))) {
+    const scan = JSON.parse(readFileSync(new URL(file, dir), 'utf8')) as ScanResult;
+    for (const language of ['en', 'fr'] as Language[]) {
+      // One form at a time: stay far from rate limits while users may be arriving.
+      // Background priority: only spare request budget, users always go first.
+      await streamFormMap(scan, language, undefined, { priority: 'background' }).catch((err) =>
+        console.warn(`[prewarm] ${file} ${language}: ${String(err)}`),
+      );
+    }
+  }
+  console.log('[prewarm] demo form maps ready (en + fr)');
+}

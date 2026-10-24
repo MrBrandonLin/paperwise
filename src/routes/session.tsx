@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
-import { ArrowLeft, Mic, Pause, Keyboard, AlertTriangle, Check } from "lucide-react";
+import { useRef, useState } from "react";
+import { ArrowLeft, Mic, Pause, Keyboard, AlertTriangle, Check, Download, Mail } from "lucide-react";
 import officeArch from "@/assets/office-arch.jpg";
 import woodenTable from "@/assets/wooden-table.jpg";
 

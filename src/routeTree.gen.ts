@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as SessionRouteImport } from './routes/session'
 import { Route as DemosScenarioIdRouteImport } from './routes/demos.$scenarioId'
+import { Route as DemosCustomRouteImport } from './routes/demos.custom'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -28,35 +29,44 @@ const DemosScenarioIdRoute = DemosScenarioIdRouteImport.update({
   path: '/demos/$scenarioId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const DemosCustomRoute = DemosCustomRouteImport.update({
+  id: '/demos/custom',
+  path: '/demos/custom',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
   '/demos/$scenarioId': typeof DemosScenarioIdRoute
+  '/demos/custom': typeof DemosCustomRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
   '/demos/$scenarioId': typeof DemosScenarioIdRoute
+  '/demos/custom': typeof DemosCustomRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/session': typeof SessionRoute
   '/demos/$scenarioId': typeof DemosScenarioIdRoute
+  '/demos/custom': typeof DemosCustomRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/session' | '/demos/$scenarioId'
+  fullPaths: '/' | '/session' | '/demos/$scenarioId' | '/demos/custom'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/session' | '/demos/$scenarioId'
-  id: '__root__' | '/' | '/session' | '/demos/$scenarioId'
+  to: '/' | '/session' | '/demos/$scenarioId' | '/demos/custom'
+  id: '__root__' | '/' | '/session' | '/demos/$scenarioId' | '/demos/custom'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   SessionRoute: typeof SessionRoute
   DemosScenarioIdRoute: typeof DemosScenarioIdRoute
+  DemosCustomRoute: typeof DemosCustomRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -82,6 +92,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DemosScenarioIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/demos/custom': {
+      id: '/demos/custom'
+      path: '/demos/custom'
+      fullPath: '/demos/custom'
+      preLoaderRoute: typeof DemosCustomRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -89,6 +106,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   SessionRoute: SessionRoute,
   DemosScenarioIdRoute: DemosScenarioIdRoute,
+  DemosCustomRoute: DemosCustomRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

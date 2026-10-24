@@ -128,7 +128,120 @@ function Session() {
           </div>
         </section>
       </div>
+
+      {/* Download your finished form */}
+      <DownloadSection fields={fields} />
       </div>
     </div>
+  );
+}
+
+async function buildFormPdf(fields: Field[]): Promise<Blob> {
+  const { PDFDocument, StandardFonts, rgb } = await import("pdf-lib");
+  const doc = await PDFDocument.create();
+  const page = doc.addPage([612, 792]);
+  const font = await doc.embedFont(StandardFonts.Helvetica);
+  const bold = await doc.embedFont(StandardFonts.HelveticaBold);
+  let y = 740;
+  page.drawText("Residential Rental Application", { x: 56, y, size: 20, font: bold, color: rgb(0.16, 0.2, 0.32) });
+  y -= 40;
+  for (const f of fields) {
+    page.drawText(f.label, { x: 56, y, size: 11, font: bold, color: rgb(0.35, 0.38, 0.45) });
+    y -= 16;
+    page.drawText(f.value || "—", { x: 56, y, size: 13, font, color: rgb(0.16, 0.18, 0.24) });
+    y -= 28;
+    if (y < 60) break;
+  }
+  const bytes = await doc.save();
+  return new Blob([bytes.buffer as ArrayBuffer], { type: "application/pdf" });
+}
+
+function downloadBlob(blob: Blob, filename: string) {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30_000);
+}
+
+type SealPhase = "idle" | "sealing" | "ready";
+
+function DownloadSection({ fields }: { fields: Field[] }) {
+  const [phase, setPhase] = useState<SealPhase>("idle");
+  const pdfRef = useRef<Blob | null>(null);
+
+  const seal = async () => {
+    if (phase !== "idle") return;
+    setPhase("sealing");
+    // Build the PDF while the envelope animation plays
+    pdfRef.current = await buildFormPdf(fields);
+    setTimeout(() => setPhase("ready"), 1900);
+  };
+
+  return (
+    <section className="mx-6 mb-8 flex flex-col items-center gap-5 rounded-2xl bg-card/90 p-8 text-center shadow-paper backdrop-blur-sm">
+      <h2 className="font-display text-2xl">All done? Take your form with you.</h2>
+      <p className="max-w-md text-muted-foreground">
+        We'll seal your finished application into an envelope so you can download it as a PDF and keep a copy.
+      </p>
+
+      {/* Envelope stage */}
+      <div className="relative h-40 w-64">
+        {phase === "idle" ? (
+          <div className="flex h-full items-center justify-center">
+            <Mail className="h-16 w-16 text-muted-foreground" />
+          </div>
+        ) : (
+          <div className={`relative h-full w-full ${phase === "sealing" || phase === "ready" ? "envelope-seal" : ""}`}>
+            {/* Paper sheet sliding in */}
+            <div aria-hidden className={`sheet-drop absolute left-1/2 top-2 h-28 w-40 -translate-x-1/2 rounded-sm bg-paper shadow-md`}>
+              <div className="space-y-1.5 p-2">
+                <div className="h-1.5 w-3/4 rounded bg-muted" />
+                <div className="h-1.5 w-full rounded bg-muted" />
+                <div className="h-1.5 w-5/6 rounded bg-muted" />
+                <div className="h-1.5 w-2/3 rounded bg-filled" />
+              </div>
+            </div>
+            {/* Envelope body */}
+            <div className="absolute inset-x-0 bottom-0 h-24 rounded-lg border border-border bg-secondary shadow-paper" />
+            {/* Flap */}
+            <div
+              aria-hidden
+              className="flap-close absolute inset-x-0 bottom-24 h-16 origin-top bg-muted"
+              style={{ clipPath: "polygon(0 0, 100% 0, 50% 100%)" }}
+            />
+            {/* Stamp */}
+            {phase === "ready" && (
+              <div className="stamp-pop absolute bottom-14 right-3 flex h-8 w-8 items-center justify-center rounded-sm bg-primary text-primary-foreground">
+                <Check className="h-5 w-5" />
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {phase === "idle" && (
+        <button
+          onClick={seal}
+          className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground"
+        >
+          <Mail className="h-5 w-5" /> Seal it in an envelope
+        </button>
+      )}
+      {phase === "sealing" && (
+        <p className="font-display text-lg text-muted-foreground">Sealing your envelope…</p>
+      )}
+      {phase === "ready" && (
+        <button
+          onClick={() => pdfRef.current && downloadBlob(pdfRef.current, "rental-application.pdf")}
+          className="flex items-center gap-2 rounded-full bg-primary px-6 py-3 font-medium text-primary-foreground"
+        >
+          <Download className="h-5 w-5" /> Download your form (PDF)
+        </button>
+      )}
+    </section>
   );
 }

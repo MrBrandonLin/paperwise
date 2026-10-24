@@ -37,7 +37,7 @@ function Index() {
         <h1 className="sr-only">Paperwise</h1>
 
         {/* Speech bubble, anchored beside the receptionist figure */}
-        <div className="absolute left-[4%] top-[8%] max-w-xs sm:left-[6%] sm:top-[12%] md:left-[30%] md:top-[20%] md:max-w-sm">
+        <div className="absolute left-[4%] top-[6%] max-w-xs md:left-[22%] md:top-[10%] md:max-w-sm lg:left-[30%] lg:top-[20%]">
           <div className="relative rounded-2xl bg-card/70 p-5 shadow-paper backdrop-blur-md">
             {/* bubble tail pointing at the receptionist */}
             <div aria-hidden className="absolute -right-3 top-8 h-6 w-6 rotate-45 rounded-tr-md bg-card/70" />

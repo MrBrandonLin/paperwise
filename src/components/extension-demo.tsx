@@ -35,6 +35,16 @@ export function ExtensionDemo() {
     return () => window.clearTimeout(timer);
   }, [bubbleText]);
 
+  useEffect(() => {
+    if (!open || finished || submitted || !field) return;
+    const element = document.getElementById(`form-${field.id}`);
+    if (!element || window.innerWidth <= 700) return;
+    const bounds = element.getBoundingClientRect();
+    if (bounds.top < 40 || bounds.bottom > window.innerHeight - 60) {
+      element.closest('.guided-field')?.scrollIntoView({ block: 'center', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'instant' : 'smooth' });
+    }
+  }, [active, open, finished, submitted, field]);
+
   function respond(event: FormEvent) {
     event.preventDefault();
     const text = answer.trim();
@@ -86,7 +96,7 @@ export function ExtensionDemo() {
           {['Personal information', 'Residential history', 'Employment & income'].map((section, sectionIndex) => <section key={section} className="mb-8">
             <h2 className="mb-5 flex items-center gap-3 text-base font-bold"><span className="text-xs font-normal text-muted-foreground">0{sectionIndex + 1}</span>{section}</h2>
             <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2">{demoFields.map((item, index) => item.section === section && <div key={item.id} className={`${item.id === 'name' || item.id === 'address' ? 'sm:col-span-2' : ''} ${open && active === index && !finished ? 'guided-field' : ''}`}>
-              <label htmlFor={`form-${item.id}`} className="mb-2 flex items-center justify-between text-xs font-bold">{item.label}<span>{values[item.id]?.trim() ? <Check className="size-3.5 text-host" /> : <span className="font-normal text-muted-foreground">Required</span>}</span></label>
+              <label htmlFor={`form-${item.id}`} className="mb-2 flex min-h-5 flex-wrap items-center justify-between gap-1 text-xs font-bold">{item.label}<span>{open && active === index && !finished ? <span className="flex items-center gap-1 text-[10px] font-bold text-primary"><Sparkles className="size-3" />Paperwise</span> : values[item.id]?.trim() ? <Check className="size-3.5 text-host" /> : <span className="font-normal text-muted-foreground">Required</span>}</span></label>
               <Input id={`form-${item.id}`} type={item.type} min={item.type === 'number' ? 0 : undefined} required value={values[item.id] || ''} placeholder={item.placeholder} onFocus={() => { setActive(index); setAnswer(''); setBubbleReply(''); }} onChange={event => { setValues(previous => ({ ...previous, [item.id]: event.target.value })); setSeal('idle'); }} className="h-11 rounded bg-paper text-sm shadow-none" />
               {item.id === 'income' && <p className="mt-2 text-[11px] text-muted-foreground">Before taxes and deductions, in USD.</p>}
             </div>)}</div>

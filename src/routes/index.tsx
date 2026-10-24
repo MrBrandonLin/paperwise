@@ -1,7 +1,8 @@
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Mic, Send, Settings } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import receptionAeroDoor from "@/assets/reception-aero-door.jpg";
+import { Button } from "@/components/ui/button";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -10,6 +11,8 @@ export const Route = createFileRoute("/")({
       { name: "description", content: "Paperwise reads your form, explains it in plain words, and fills it in as you talk — in your language." },
       { property: "og:title", content: "Paperwise — Get through any form, by voice" },
       { property: "og:description", content: "An AI that sits next to you and walks you through any form, in your language." },
+      { property: "og:type", content: "website" },
+      { name: "twitter:card", content: "summary_large_image" },
     ],
   }),
   component: Index,
@@ -100,6 +103,7 @@ function Index() {
 
       <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
         <h1 className="sr-only">Paperwise</h1>
+        <Button asChild variant="secondary" size="sm" className="absolute right-4 top-4 z-20 shadow-paper"><Link to="/demo">Try the browser extension</Link></Button>
 
         {/* Speech bubble, anchored beside the receptionist figure */}
         <div className="absolute left-[4%] top-[6%] max-w-xs md:left-[22%] md:top-[10%] md:max-w-sm lg:left-[28%] lg:top-[22%]">

@@ -147,11 +147,14 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
       </main>
     </div>
 
-    {!open && prompt && <div role="dialog" aria-labelledby="pw-prompt-title" className="form-prompt glass-light bg-card/85 shadow-paper backdrop-blur-xl fixed bottom-6 right-6 z-40 w-[min(360px,calc(100vw-3rem))] rounded-2xl p-5 font-sans text-sm text-foreground">
-      <div className="flex items-start gap-3"><img src={logo.url} alt="" className="size-11 shrink-0 drop-shadow" /><div className="min-w-0 flex-1"><p className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider text-primary"><span className="size-1.5 animate-pulse rounded-full bg-primary" />Form detected</p><p id="pw-prompt-title" className="mt-1 font-display text-lg leading-snug">Want help filling this out?</p><p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">Paperwise found a {demoFields.length}-field form on this page. I can guide you one question at a time, by voice or typing.</p></div><Button variant="ghost" size="icon" className="-mr-2 -mt-2 size-8" aria-label="Dismiss" onClick={() => setPrompt(false)}><X /></Button></div>
-      <div className="glass-hairline my-4" aria-hidden="true" />
-      <div className="flex gap-2"><Button className="flex-1 gap-2" onClick={() => { setPrompt(false); setOpen(true); }}><Sparkles className="size-4" />Help me fill this</Button><Button variant="ghost" onClick={() => setPrompt(false)}>Not now</Button></div>
-      <p className="mt-3 flex items-center gap-1.5 text-[10px] text-muted-foreground"><LockKeyhole className="size-3" />Nothing is shared until you say yes.</p>
+    {!open && prompt && <div role="dialog" aria-labelledby="pw-prompt-title" className="form-prompt fixed bottom-6 right-6 z-40 flex items-end gap-3 font-sans text-sm text-foreground">
+      <div className="form-prompt-card glass-light relative w-[min(280px,calc(100vw-7rem))] rounded-2xl bg-card/85 p-4 shadow-paper backdrop-blur-xl">
+        <Button variant="ghost" size="icon" className="absolute right-1.5 top-1.5 size-8" aria-label="Dismiss" onClick={() => setPrompt(false)}><X /></Button>
+        <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Form detected · {demoFields.length} fields</p>
+        <p id="pw-prompt-title" className="mb-4 mr-6 mt-1 font-display text-lg leading-snug">Want help filling this out?</p>
+        <div className="flex gap-2"><Button className="flex-1 gap-2" onClick={() => { setPrompt(false); setOpen(true); }}><Sparkles className="size-4" />Help me fill this</Button><Button variant="ghost" onClick={() => setPrompt(false)}>Not now</Button></div>
+      </div>
+      <div className="receptionist receptionist-speaking shrink-0" role="img" aria-label="Paperwise speaking"><div className="receptionist-head"><span className="receptionist-mouth" /></div><div className="receptionist-body" /></div>
     </div>}
     {!open && !prompt && <Button onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-30 h-14 gap-2 rounded-full pl-2 pr-5 shadow-paper glass-light text-foreground hover:bg-card/80"><img src={logo.url} alt="" className="size-7" /> Paperwise <span className="rounded-full bg-primary-foreground/15 px-2 py-0.5 text-xs">{completed}/{demoFields.length}</span></Button>}
     {open && <aside aria-label="Paperwise assistant" className={`paperwise-panel fixed inset-y-0 right-0 z-40 flex flex-col glass-panel ${largeText ? 'text-lg' : 'text-sm'}`}>

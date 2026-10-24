@@ -1,7 +1,7 @@
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Mic, Send, Settings } from "lucide-react";
 import { useState } from "react";
-import receptionDesk from "@/assets/reception-desk.jpg";
+import receptionAero from "@/assets/reception-aero.jpg";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -25,8 +25,8 @@ function Index() {
     <div className="relative min-h-screen overflow-hidden">
       {/* The reception room */}
       <img
-        src={receptionDesk}
-        alt="A receptionist standing behind a curved wooden desk in a wood-panelled office"
+        src={receptionAero}
+        alt="A glossy aqua-blue receptionist figure waving behind a curved white desk in a bright glass office with a Paperwise sign on the wall"
         width={1920}
         height={1280}
         className="absolute inset-0 h-full w-full object-cover object-[25%_center] md:object-center"
@@ -34,21 +34,20 @@ function Index() {
       <div aria-hidden className="absolute inset-0 bg-foreground/10" />
 
       <div className="relative flex min-h-screen flex-col justify-between p-4 sm:p-6">
-        {/* Top row: nameplate + greeting bubble */}
-        <div className="flex flex-wrap items-start gap-4 sm:gap-8">
-          <h1 className="rounded-xl bg-secondary/80 px-8 py-4 font-display text-3xl shadow-paper backdrop-blur-sm md:text-4xl">
-            Paperwise
-          </h1>
+        <h1 className="sr-only">Paperwise</h1>
 
-          <div className="relative max-w-sm rounded-2xl bg-card/85 p-5 shadow-paper backdrop-blur-sm">
+        {/* Speech bubble, anchored beside the receptionist figure */}
+        <div className="absolute left-[4%] top-[30%] max-w-xs sm:left-[8%] sm:top-[26%] md:left-[30%] md:top-[20%] md:max-w-sm">
+          <div className="relative rounded-2xl bg-card/70 p-5 shadow-paper backdrop-blur-md">
             {/* bubble tail pointing at the receptionist */}
-            <div aria-hidden className="absolute -left-3 top-8 h-6 w-6 rotate-45 rounded-bl-md bg-card/85" />
+            <div aria-hidden className="absolute -right-3 top-8 h-6 w-6 rotate-45 rounded-tr-md bg-card/70" />
             <p className="relative text-lg md:text-xl">Hi! What can I help you with?</p>
             <p className="relative mt-1 text-sm text-muted-foreground">
               Snap a photo of any form — I'll read it, explain it, and fill it in with you.
             </p>
           </div>
         </div>
+        <div />
 
         {/* Bottom row: talk to the receptionist */}
         <form

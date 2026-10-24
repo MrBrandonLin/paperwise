@@ -26,7 +26,7 @@ function Index() {
     <div className="relative min-h-screen bg-background">
       {/* Office room backdrop */}
       <div aria-hidden className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${officeRoom})` }} />
-      <div aria-hidden className="fixed inset-0 bg-background/80" />
+      <div aria-hidden className="fixed inset-0 bg-background/70" />
       <div className="relative flex min-h-screen flex-col">
       <header className="mx-auto flex w-full max-w-6xl items-center justify-between px-6 py-6">
         <span className="font-display text-2xl">Paperwise</span>

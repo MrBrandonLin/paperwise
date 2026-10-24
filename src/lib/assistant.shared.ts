@@ -59,10 +59,12 @@ export const assistantGenerationConfig = {
 export function parseAssistantResult(raw: unknown, fields: Pick<DemoField, 'id'>[]): AssistantReply | null {
   if (raw == null || typeof raw !== 'object') return null;
   const candidate = raw as Record<string, unknown>;
-  if (typeof candidate.reply !== 'string' || !candidate.reply.trim()) return null;
-  const reply = candidate.reply.trim();
-  const fieldId = typeof candidate.fieldId === 'string' ? candidate.fieldId : null;
-  const value = typeof candidate.value === 'string' ? candidate.value.trim() : '';
+  if (typeof candidate['reply'] !== 'string' || !candidate['reply'].trim()) return null;
+  const reply = candidate['reply'].trim();
+  const rawFieldId = candidate['fieldId'];
+  const rawValue = candidate['value'];
+  const fieldId = typeof rawFieldId === 'string' ? rawFieldId : null;
+  const value = typeof rawValue === 'string' ? rawValue.trim() : '';
   if (fieldId && value && fields.some(field => field.id === fieldId)) {
     return { reply, proposal: { fieldId, value } };
   }

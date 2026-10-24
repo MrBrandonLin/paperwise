@@ -47,8 +47,10 @@ function Session() {
   return (
     <div className="relative flex min-h-screen flex-col bg-background">
       {/* Office room backdrop */}
-      <div aria-hidden className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${officeRoom})` }} />
-      <div aria-hidden className="fixed inset-0 bg-background/85" />
+      <div aria-hidden className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${officeArch})` }} />
+      <div aria-hidden className="fixed inset-0 bg-background/80" />
+      <div aria-hidden className="fixed inset-x-0 bottom-0 h-[38vh] bg-cover bg-top opacity-70" style={{ backgroundImage: `url(${woodenTable})` }} />
+      <div aria-hidden className="fixed inset-x-0 bottom-0 h-[38vh] bg-gradient-to-t from-transparent to-background" />
       <div className="relative flex min-h-screen flex-col">
       <header className="flex items-center justify-between border-b border-border bg-background/70 px-6 py-4 backdrop-blur-sm">
         <Link to="/" className="flex items-center gap-2 text-muted-foreground"><ArrowLeft className="h-4 w-4" /> Paperwise</Link>

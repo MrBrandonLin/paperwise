@@ -8,3 +8,6 @@
 > Commits you push to the connected branch sync back to Lovable and show up in
 > the editor, so keep the branch in a working state.
 <!-- LOVABLE:END -->
+
+- Keep the extension demo client-side, with shared field definitions driving both the host form and assistant so answers stay synchronized without submitting personal data.
+- Use the index route for the extension demo and preserve the standalone session route; the demo is not an installable browser extension.

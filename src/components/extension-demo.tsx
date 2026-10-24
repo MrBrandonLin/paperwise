@@ -4,6 +4,7 @@ import { ArrowDownToLine, ArrowLeft, ArrowRight, Briefcase, Building2, Landmark,
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { downloadDemoPdf, nextEmptyField, sectionsOf, type DemoScenario, type DemoValues } from '@/lib/extension-demo';
+import { askPaperwiseAssistant } from '@/lib/assistant.functions';
 import office from '@/assets/office-arch.jpg';
 import logo from '@/assets/paperwise-logo.png.asset.json';
 
@@ -26,6 +27,8 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
   const [downloadError, setDownloadError] = useState('');
   const [bubbleReply, setBubbleReply] = useState('');
   const [speaking, setSpeaking] = useState(true);
+  const [thinking, setThinking] = useState(false);
+  const [pending, setPending] = useState<{ fieldId: string; value: string } | null>(null);
   const panelBody = useRef<HTMLDivElement>(null);
   const field = demoFields[active];
   const completed = demoFields.filter(item => values[item.id]?.trim()).length;
@@ -51,27 +54,57 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
     }
   }, [active, open, finished, submitted, field]);
 
-  function respond(event: FormEvent) {
+  async function respond(event: FormEvent) {
     event.preventDefault();
     const text = answer.trim();
-    if (!text || !field) return;
-    if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-      setBubbleReply('Please enter a complete email address, like name@example.com.');
-      return;
-    }
-    if (field.type === 'number' && (!Number.isFinite(Number(text)) || Number(text) < 0)) {
-      setBubbleReply(`Please enter ${field.label.toLowerCase()} as a positive number.`);
-      return;
-    }
-    const updated = { ...values, [field.id]: text };
-    setValues(updated);
+    if (!text || thinking) return;
     setMessages(previous => [...previous, { role: 'user', text }]);
     setAnswer('');
+    setPending(null);
+    setThinking(true);
+    setBubbleReply('');
+    try {
+      const result = await askPaperwiseAssistant({
+        data: {
+          scenarioTitle: scenario.title,
+          scenarioContext: scenario.context,
+          fields: demoFields.map(({ id, label, type, question, explanation }) => ({ id, label, type, question, explanation })),
+          values,
+          activeFieldId: finished ? null : (field?.id ?? null),
+          message: text,
+        },
+      });
+      setBubbleReply(result.reply);
+      if (result.proposal && !finished) setPending(result.proposal);
+    } catch (error) {
+      setBubbleReply(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+    } finally {
+      setThinking(false);
+      setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    }
+  }
+
+  function applyProposal() {
+    if (!pending) return;
+    const target = demoFields.find(item => item.id === pending.fieldId);
+    if (!target) { setPending(null); return; }
+    if (target.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(pending.value)) {
+      setBubbleReply('That doesn’t look like a complete email address — could you check it?');
+      setPending(null);
+      return;
+    }
+    if (target.type === 'number' && (!Number.isFinite(Number(pending.value)) || Number(pending.value) < 0)) {
+      setBubbleReply(`Please give ${target.label.toLowerCase()} as a positive number.`);
+      setPending(null);
+      return;
+    }
+    const updated = { ...values, [target.id]: pending.value };
+    setValues(updated);
+    setPending(null);
     setSeal('idle');
     const next = nextEmptyField(updated, demoFields);
-    setBubbleReply(next >= 0 ? `Added to ${field.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
-    if (next >= 0) setActive(next);
-    setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
+    setBubbleReply(next >= 0 ? `Added to ${target.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
+    if (next >= 0) setActive(demoFields.findIndex(item => item.id === demoFields[next]!.id));
   }
 
   async function download() {
@@ -107,7 +140,7 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
               {item.hint && <p className="mt-2 text-[11px] text-muted-foreground">{item.hint}</p>}
             </div>)}</div>
           </section>)}
-          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your information stays in this demo page. Nothing is submitted.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">{scenario.submitLabel} <ArrowRight /></Button></div></div>
+          <div className="border-t border-border pt-6"><p className="mb-5 flex items-start gap-2 text-xs leading-relaxed text-muted-foreground"><LockKeyhole className="mt-0.5 size-3.5 shrink-0" />Your chat is processed by the Paperwise assistant to help you fill this form. Nothing is submitted to {scenario.brand}.</p><div className="flex items-center justify-between gap-3"><span className="text-xs text-muted-foreground">{completed} of {demoFields.length} fields completed</span><Button type="submit" className="bg-host text-host-foreground hover:bg-host/90">{scenario.submitLabel} <ArrowRight /></Button></div></div>
         </form>}
         <footer className="mt-12 border-t border-border pt-5 text-[11px] text-muted-foreground">© {scenario.brand}{scenario.brandSuffix} · Fictional website</footer>
       </main>
@@ -129,10 +162,16 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
         {messages.map((message, index) => <div key={index} className="mb-3 ml-9 break-words rounded-xl glass-light px-3 py-2">{message.text}</div>)}
       </div>
       <div className="shrink-0 border-t border-border p-4">
-        {!finished && <form onSubmit={respond} className="flex items-center gap-2 rounded-xl glass-light p-2"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onChange={event => setAnswer(event.target.value)} placeholder="Type your answer…" className="h-10 min-w-0 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" /><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim()} className="shrink-0"><Send /></Button></form>}
+        {pending && !finished && <div className="mb-3 rounded-xl border border-primary/30 bg-filled/50 p-3" role="group" aria-label="Approve assistant suggestion">
+          <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Add to {demoFields.find(item => item.id === pending.fieldId)?.label}</p>
+          <p className="mt-1 break-words text-sm font-bold">{pending.value}</p>
+          <div className="mt-2 flex gap-2"><Button size="sm" onClick={applyProposal}><Check /> Add to form</Button><Button size="sm" variant="ghost" onClick={() => { setPending(null); setBubbleReply('No problem — nothing was added. What would you like instead?'); }}><X /> Not now</Button></div>
+        </div>}
+        {thinking && <p className="mb-2 flex items-center gap-2 text-xs text-muted-foreground" role="status"><Sparkles className="size-3.5 animate-pulse text-primary" /> Paperwise is thinking…</p>}
+        {!finished && <form onSubmit={respond} className="flex items-center gap-2 rounded-xl glass-light p-2"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onChange={event => setAnswer(event.target.value)} placeholder="Ask a question or give an answer…" disabled={thinking} className="h-10 min-w-0 border-0 bg-transparent text-sm shadow-none focus-visible:ring-0" /><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim() || thinking} className="shrink-0"><Send /></Button></form>}
         <div className={`mt-3 flex items-center gap-3 rounded-lg border p-3 ${finished ? 'border-primary/30 bg-filled/50' : 'border-card/70 bg-card/40'}`}><div className={`relative flex size-10 shrink-0 items-center justify-center text-primary ${seal === 'sealing' ? 'demo-envelope-seal' : ''}`}>{seal === 'ready' ? <Check className="size-6" /> : <Mail className="size-6" />}{seal === 'sealing' && <span className="demo-envelope-sheet" />}</div><div className="min-w-0 flex-1"><p className="text-xs font-bold">{seal === 'sealing' ? 'Sealing your envelope…' : seal === 'ready' ? 'Your copy is downloaded' : 'Take your form with you'}</p><p className="mt-1 text-[10px] text-muted-foreground">{finished ? 'Your answers, saved as a PDF' : 'Available when all fields are filled'}</p></div><Button variant="ghost" size="icon" aria-label="Download form PDF" title="Download form PDF" disabled={!finished || seal === 'sealing'} onClick={download}><ArrowDownToLine /></Button></div>
         {downloadError && <p role="alert" className="mt-2 text-xs text-destructive">{downloadError}</p>}
-        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="size-3" /> Demo only · No data leaves this page</p>
+        <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="size-3" /> Demo · Answers are reviewed by the assistant before you approve them</p>
       </div>
     </aside>}
   </div>;

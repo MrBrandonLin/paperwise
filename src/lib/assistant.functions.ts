@@ -47,7 +47,7 @@ export const askPaperwiseAssistant = createServerFn({ method: 'POST' })
     );
 
     if (!response.ok) {
-      console.error(`Gemini request failed: ${response.status}`);
+      console.error(`Gemini request failed: ${response.status} ${await response.text()}`);
       throw new Error('The assistant is unavailable right now. Please try again.');
     }
 

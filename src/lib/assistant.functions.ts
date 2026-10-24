@@ -26,7 +26,9 @@ const inputSchema = z.object({
   message: z.string().min(1).max(2000),
 });
 
-const GEMINI_MODEL = 'gemini-3.8-flash';
+// Tried in order; Google's API rejects or stalls models that are unavailable
+// or overloaded, so the handler falls through to the next one.
+const GEMINI_MODELS = ['gemini-3.8-flash', 'gemini-3-flash', 'gemini-2.0-flash'];
 
 export const askPaperwiseAssistant = createServerFn({ method: 'POST' })
   .inputValidator((data: unknown) => inputSchema.parse(data))

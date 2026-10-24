@@ -1,6 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Mic, Pause, Keyboard, AlertTriangle, Check } from "lucide-react";
+import officeRoom from "@/assets/office-room.jpg";
 
 export const Route = createFileRoute("/session")({
   head: () => ({
@@ -43,8 +44,12 @@ function Session() {
   const done = fields.filter((f) => f.status === "filled").length;
 
   return (
-    <div className="flex min-h-screen flex-col bg-background">
-      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+    <div className="relative flex min-h-screen flex-col bg-background">
+      {/* Office room backdrop */}
+      <div aria-hidden className="fixed inset-0 bg-cover bg-center" style={{ backgroundImage: `url(${officeRoom})` }} />
+      <div aria-hidden className="fixed inset-0 bg-background/85" />
+      <div className="relative flex min-h-screen flex-col">
+      <header className="flex items-center justify-between border-b border-border bg-background/70 px-6 py-4 backdrop-blur-sm">
         <Link to="/" className="flex items-center gap-2 text-muted-foreground"><ArrowLeft className="h-4 w-4" /> Paperwise</Link>
         <div className="text-sm text-muted-foreground">Rental application · Section 2 of 4</div>
         <div className="flex gap-2 text-sm">

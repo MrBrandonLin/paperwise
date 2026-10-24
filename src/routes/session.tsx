@@ -1,7 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { ArrowLeft, Mic, Pause, Keyboard, AlertTriangle, Check } from "lucide-react";
-import officeRoom from "@/assets/office-room.jpg";
+import officeArch from "@/assets/office-arch.jpg";
+import woodenTable from "@/assets/wooden-table.jpg";
 
 export const Route = createFileRoute("/session")({
   head: () => ({

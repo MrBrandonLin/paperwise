@@ -1,0 +1,24 @@
+/* Side panel styles: Tailwind v4 + the teammate's theme. Only src/ui/panel + components are scanned. */
+@import "tailwindcss" source(none);
+@source "../panel";
+@source "../components";
+@import "tw-animate-css";
+@import "./theme.css";
+
+/* Bundled fonts (public/fonts): no internet needed on stage. */
+@font-face { font-family: "Paperwise Sans"; src: url("/fonts/atkinson-hyperlegible-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Paperwise Sans"; src: url("/fonts/atkinson-hyperlegible-latin-700-normal.woff2") format("woff2"); font-weight: 700; font-display: swap; }
+@font-face { font-family: "Paperwise Display"; src: url("/fonts/fraunces-latin-400-normal.woff2") format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Paperwise Display"; src: url("/fonts/fraunces-latin-600-normal.woff2") format("woff2"); font-weight: 600; font-display: swap; }
+
+html,
+body,
+#root {
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  color: var(--foreground);
+  background: var(--background);
+}

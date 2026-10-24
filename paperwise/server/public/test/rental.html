@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Rental Application – Maple Street Apartments</title>
+    <style>
+      body { font: 16px Georgia, serif; max-width: 640px; margin: 32px auto; padding: 0 16px; color: #222; }
+      fieldset { border: 1px solid #bbb; margin: 0 0 20px; padding: 12px 16px; }
+      label { display: block; margin: 10px 0 4px; }
+      input[type='text'], input[type='email'], input[type='tel'], input[type='date'],
+      input[type='number'], select, textarea { width: 100%; padding: 6px; font: inherit; box-sizing: border-box; }
+      .inline label { display: inline; margin-right: 12px; }
+      button { font: inherit; padding: 8px 20px; }
+    </style>
+  </head>
+  <body>
+    <h1>Rental Application</h1>
+    <p>Maple Street Apartments · Unit 4B</p>
+
+    <form id="rental">
+      <fieldset>
+        <legend>Applicant information</legend>
+        <label for="first">First name *</label>
+        <input id="first" name="first_name" type="text" required autocomplete="given-name" />
+        <label for="last">Last name *</label>
+        <input id="last" name="last_name" type="text" required autocomplete="family-name" />
+        <label for="dob">Date of birth *</label>
+        <input id="dob" name="dob" type="date" required />
+        <label for="email">Email</label>
+        <input id="email" name="email" type="email" autocomplete="email" />
+        <label for="phone">Phone number *</label>
+        <input id="phone" name="phone" type="tel" required autocomplete="tel" />
+        <label for="ssn">Social Security Number *</label>
+        <input id="ssn" name="ssn" type="text" required inputmode="numeric" maxlength="11" />
+      </fieldset>
+
+      <fieldset>
+        <legend>Employment and income</legend>
+        <label for="status">Employment status *</label>
+        <select id="status" name="employment_status" required>
+          <option value="">Select…</option>
+          <option value="employed">Employed</option>
+          <option value="self">Self-employed</option>
+          <option value="student">Student</option>
+          <option value="unemployed">Unemployed</option>
+          <option value="retired">Retired</option>
+        </select>
+        <!-- Shown only when employed / self-employed (see script below). -->
+        <div id="employer-row" hidden>
+          <label for="employer">Employer name</label>
+          <input id="employer" name="employer" type="text" />
+        </div>
+        <label for="income">Gross monthly income (USD) *</label>
+        <input id="income" name="gross_monthly_income" type="number" min="0" required />
+      </fieldset>
+
+      <fieldset>
+        <legend>Rental details</legend>
+        <label for="movein">Desired move-in date *</label>
+        <input id="movein" name="move_in" type="date" required />
+        <p style="margin: 10px 0 4px">Do you have pets? *</p>
+        <div class="inline" role="radiogroup" aria-label="Do you have pets?">
+          <input id="pets-yes" name="pets" type="radio" value="yes" required /><label for="pets-yes">Yes</label>
+          <input id="pets-no" name="pets" type="radio" value="no" /><label for="pets-no">No</label>
+        </div>
+        <!-- Shown only when pets = yes (see script below). -->
+        <div id="pets-desc-row" hidden>
+          <label for="pets-desc">If yes, describe your pets</label>
+          <textarea id="pets-desc" name="pets_description" rows="2"></textarea>
+        </div>
+        <label for="cosigner">Co-signer full name (if any)</label>
+        <input id="cosigner" name="cosigner" type="text" />
+      </fieldset>
+
+      <fieldset>
+        <legend>Authorization</legend>
+        <input id="credit" name="credit_check_consent" type="checkbox" required />
+        <label for="credit" style="display: inline">
+          I authorize the landlord to obtain my credit report and verify the information above. *
+        </label>
+        <br />
+        <input id="truth" name="certify" type="checkbox" required />
+        <label for="truth" style="display: inline">
+          I certify that the information provided is true and complete. *
+        </label>
+      </fieldset>
+
+      <button type="submit">Submit application</button>
+    </form>
+
+    <!-- Test page only: shows what the form would submit, instead of sending it. -->
+    <h2>Submitted values</h2>
+    <pre id="submitted" style="background: #f4f4f4; padding: 8px; white-space: pre-wrap">Nothing submitted yet.</pre>
+    <script>
+      // Plain-JS conditional fields: they are always in the page, just hidden until relevant.
+      const form = document.getElementById('rental');
+      const updateConditions = () => {
+        const status = form.elements.employment_status.value;
+        document.getElementById('employer-row').hidden = !(status === 'employed' || status === 'self');
+        document.getElementById('pets-desc-row').hidden = form.elements.pets.value !== 'yes';
+      };
+      form.addEventListener('change', updateConditions);
+      form.addEventListener('input', updateConditions);
+
+      document.getElementById('rental').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const data = Object.fromEntries(new FormData(e.target));
+        document.getElementById('submitted').textContent = JSON.stringify(data, null, 2);
+      });
+    </script>
+  </body>
+</html>

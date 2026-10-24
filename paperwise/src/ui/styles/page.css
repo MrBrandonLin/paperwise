@@ -1,0 +1,25 @@
+/*
+ * In-page UI styles (inside our shadow root on host pages). Tailwind v4 + the teammate's theme.
+ * content/page-ui.tsx adapts the compiled CSS to a shadow root (rem → px, @property defaults)
+ * and attaches it as a constructed stylesheet: nothing is added to the page's own styles.
+ * Fonts are registered by the content script (FontFace), since @font-face doesn't work here.
+ */
+@import "tailwindcss" source(none);
+@source "../page";
+@import "./theme.css";
+
+:host {
+  all: initial;
+}
+
+/* Fill animation: the spoken answer drops onto the field, then fades to show the real value. */
+@keyframes pw-flow {
+  0% { opacity: 0; transform: translateY(-110%); clip-path: inset(0 100% 0 0); }
+  25% { opacity: 1; transform: translateY(-110%); clip-path: inset(0 0 0 0); }
+  60% { opacity: 1; transform: translateY(0); }
+  100% { opacity: 0; transform: translateY(0); }
+}
+@utility flow-in { animation: pw-flow 1.6s ease-out both; }
+@media (prefers-reduced-motion: reduce) {
+  .flow-in { animation: none; opacity: 0; }
+}

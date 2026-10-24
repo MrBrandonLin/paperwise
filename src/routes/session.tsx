@@ -1,0 +1,125 @@
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
+import { ArrowLeft, Mic, Pause, Keyboard, AlertTriangle, Check } from "lucide-react";
+
+export const Route = createFileRoute("/session")({
+  head: () => ({
+    meta: [
+      { title: "Your form session — Paperwise" },
+      { name: "description", content: "Talk through your form while Paperwise fills it in live." },
+      { property: "og:title", content: "Your form session — Paperwise" },
+      { property: "og:description", content: "Watch your form fill itself in as you talk." },
+    ],
+  }),
+  component: Session,
+});
+
+type Status = "empty" | "filled" | "unclear";
+type Field = { label: string; value: string; native?: string; status: Status; stakes?: string };
+
+const initial: Field[] = [
+  { label: "Full legal name", value: "Amélie Dubois", native: "Nom complet", status: "filled" },
+  { label: "Date of birth", value: "03/14/1988", native: "Date de naissance", status: "filled" },
+  { label: "Gross monthly income", value: "$3,200 ?", native: "Revenu mensuel brut", status: "unclear" },
+  { label: "Co-signer / Guarantor", value: "", native: "Garant", status: "empty" },
+  { label: "Consent to credit check", value: "", native: "Vérification de crédit", status: "empty", stakes: "Lets the landlord check your credit" },
+  { label: "Signature", value: "", native: "Signature", status: "empty", stakes: "Legally binding" },
+];
+
+const chat = [
+  { who: "ai", text: "C'est une demande de location. 4 sections, environ 8 minutes. Deux parties sont importantes avant de signer. On commence ?", en: "This is a rental application…" },
+  { who: "me", text: "Oui, allons-y." },
+  { who: "ai", text: "Combien gagnez-vous par mois, avant impôts ?" },
+  { who: "me", text: "À peu près trois mille deux cents." },
+  { who: "ai", text: "J'ai noté 3 200 $. C'est bien avant impôts ?" },
+];
+
+const states = ["Listening", "Thinking", "Speaking"] as const;
+
+function Session() {
+  const [fields] = useState(initial);
+  const [active, setActive] = useState(2);
+  const [state, setState] = useState(0);
+  const done = fields.filter((f) => f.status === "filled").length;
+
+  return (
+    <div className="flex min-h-screen flex-col bg-background">
+      <header className="flex items-center justify-between border-b border-border px-6 py-4">
+        <Link to="/" className="flex items-center gap-2 text-muted-foreground"><ArrowLeft className="h-4 w-4" /> Paperwise</Link>
+        <div className="text-sm text-muted-foreground">Rental application · Section 2 of 4</div>
+        <div className="flex gap-2 text-sm">
+          <span className="rounded-full bg-secondary px-3 py-1">Français → English</span>
+          <span className="rounded-full bg-secondary px-3 py-1">Speed 1×</span>
+        </div>
+      </header>
+
+      <div className="grid flex-1 gap-6 p-6 lg:grid-cols-[1.2fr_1fr]">
+        {/* Document */}
+        <section className="rounded-2xl bg-paper p-8 shadow-paper">
+          <div className="mb-6 flex items-baseline justify-between border-b border-border pb-4">
+            <h2 className="font-display text-2xl">Residential Rental Application</h2>
+            <span className="text-sm text-muted-foreground">{done}/{fields.length} filled</span>
+          </div>
+          <div className="space-y-4">
+            {fields.map((f, i) => (
+              <button
+                key={f.label}
+                onClick={() => setActive(i)}
+                className={[
+                  "block w-full rounded-xl border-2 p-4 text-left transition",
+                  i === active ? "border-primary" : "border-transparent",
+                  f.status === "filled" && "bg-filled",
+                  f.status === "unclear" && "bg-warning-soft",
+                  f.status === "empty" && "bg-muted",
+                ].filter(Boolean).join(" ")}
+              >
+                <div className="flex items-center justify-between text-xs uppercase tracking-wide text-muted-foreground">
+                  <span>{f.label} <span className="normal-case italic">· {f.native}</span></span>
+                  {f.status === "filled" && <Check className="h-4 w-4 text-primary" />}
+                  {f.status === "unclear" && <AlertTriangle className="h-4 w-4 text-warning-foreground" />}
+                </div>
+                <div className="mt-1 min-h-7 font-display text-xl">
+                  {f.value && <span className="ink-in inline-block">{f.value}</span>}
+                </div>
+                {f.stakes && (
+                  <div className="mt-2 inline-flex items-center gap-1 rounded-full bg-warning-soft px-2 py-0.5 text-xs text-warning-foreground">
+                    <AlertTriangle className="h-3 w-3" /> {f.stakes}
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+        </section>
+
+        {/* Conversation */}
+        <section className="flex flex-col rounded-2xl bg-card p-6 shadow-paper">
+          <div className="flex-1 space-y-4 overflow-y-auto">
+            {chat.map((m, i) => (
+              <div key={i} className={m.who === "me" ? "flex justify-end" : ""}>
+                <div className={["max-w-[85%] rounded-2xl px-4 py-3 text-lg", m.who === "me" ? "bg-primary text-primary-foreground" : "bg-secondary"].join(" ")}>
+                  {m.text}
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-6 rounded-xl bg-muted p-3 text-center text-sm text-muted-foreground">
+            Captions: “J'ai noté 3 200 $. C'est bien avant impôts ?”
+          </div>
+
+          <div className="mt-6 flex flex-col items-center gap-3">
+            <button onClick={() => setState((state + 1) % 3)} className="relative flex h-24 w-24 items-center justify-center rounded-full bg-primary text-primary-foreground" aria-label={states[state]}>
+              {state === 0 && <span className="orb-pulse absolute inset-0 rounded-full bg-primary" />}
+              <Mic className="relative h-9 w-9" />
+            </button>
+            <p className="font-display text-lg">{states[state]}…</p>
+            <div className="flex gap-2">
+              <button className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm"><Pause className="h-4 w-4" /> Pause</button>
+              <button className="flex items-center gap-1 rounded-full border border-border px-4 py-2 text-sm"><Keyboard className="h-4 w-4" /> Type instead</button>
+            </div>
+          </div>
+        </section>
+      </div>
+    </div>
+  );
+}

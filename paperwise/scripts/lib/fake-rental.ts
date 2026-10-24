@@ -3,11 +3,13 @@
  * like the real one (employer shows for employed/self, pets description for pets = yes).
  */
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import type { FormMap, Language, ScanResult } from '../../src/shared/contract';
 import type { ContentRequest, Result } from '../../src/shared/messages';
 import type { PageTransport } from '../../src/engine/engine';
 
-export const scan0 = JSON.parse(readFileSync(new URL('../../server/test-pages/scans/rental.json', import.meta.url), 'utf8')) as ScanResult;
+export const scan0 = JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '..', '..', 'server', 'test-pages', 'scans', 'rental.json'), 'utf8')) as ScanResult;
 export const F = (id: string) => scan0.fields.find((f) => f.id === id)!;
 export class FakePage implements PageTransport {
   values = new Map<string, string>();

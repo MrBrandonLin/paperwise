@@ -12,6 +12,8 @@
  *   --warm    use the disk cache (shows cache-hit timings)
  */
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { paths } from '../src/paths.ts';
 import type { FormMap, Language, ScanResult } from '../../src/shared/contract.ts';
 
 const args = process.argv.slice(2);
@@ -26,7 +28,7 @@ const { streamFormMap } = await import('../src/form-map.ts');
 
 for (const language of languages) {
   for (const name of names) {
-    const scan = JSON.parse(readFileSync(new URL(`../test-pages/scans/${name}.json`, import.meta.url), 'utf8')) as ScanResult;
+    const scan = JSON.parse(readFileSync(join(paths.scans, `${name}.json`), 'utf8')) as ScanResult;
     const line = '='.repeat(100);
     console.log(`\n${line}\n${name}  ·  ${scan.fields.length} fields  ·  ${language}\n${line}`);
 

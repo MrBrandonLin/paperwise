@@ -3,9 +3,11 @@
 import * as esbuild from 'esbuild';
 import { existsSync, readFileSync } from 'node:fs';
 import { createServer } from 'node:http';
-import { extname, join, normalize } from 'node:path';
+import { dirname, extname, join, normalize } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-export const ROOT = new URL('../..', import.meta.url).pathname;
+// fileURLToPath, never new URL(...).pathname: that gives "/C:/..." on Windows (read as C:\C:\...).
+export const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const PUBLIC = join(ROOT, 'server/public');
 
 export function findBrowser() {

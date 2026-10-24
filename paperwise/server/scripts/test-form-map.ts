@@ -9,6 +9,7 @@ import { createServer } from 'node:http';
 import { mkdtempSync, readFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { paths } from '../src/paths.ts';
 import type { FormMap, ScanResult } from '../../src/shared/contract.ts';
 import type { FormMapStreamLine, FormMapUpdate } from '../../src/shared/messages.ts';
 
@@ -94,7 +95,7 @@ const check = (cond: unknown, msg: string) => {
   console.log(`  ${cond ? 'PASS' : 'FAIL'}  ${msg}`);
 };
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-const load = (name: string) => JSON.parse(readFileSync(new URL(`../test-pages/scans/${name}.json`, import.meta.url), 'utf8')) as ScanResult;
+const load = (name: string) => JSON.parse(readFileSync(join(paths.scans, `${name}.json`), 'utf8')) as ScanResult;
 const rental = load('rental');
 const reactInitial = load('rental-react');
 const reactExpanded = load('rental-react-expanded');

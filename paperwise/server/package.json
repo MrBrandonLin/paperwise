@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "form-map:print": "tsx scripts/print-form-map.ts",
     "test:form-map": "tsx scripts/test-form-map.ts",
+    "test:paths": "tsx scripts/test-paths.ts",
     "agent:setup": "tsx scripts/agent-setup.ts",
     "voice:sim": "tsx scripts/voice-sim.ts"
   },

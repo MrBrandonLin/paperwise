@@ -1,8 +1,10 @@
+import { paths } from './paths.ts';
+
 // Load server/.env (Node 20.12+ built-in). Missing file is fine: real env vars still work.
 try {
-  process.loadEnvFile(new URL('../.env', import.meta.url).pathname);
+  process.loadEnvFile(paths.env);
 } catch {
-  console.warn('[env] no server/.env file found — using process environment only');
+  console.warn(`[env] no server/.env file found at ${paths.env} — using process environment only`);
 }
 
 export const env = {

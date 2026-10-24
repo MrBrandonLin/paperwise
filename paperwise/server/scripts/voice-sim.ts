@@ -13,6 +13,7 @@
  * Needs ELEVENLABS_API_KEY + ELEVENLABS_AGENT_ID (run agent:setup first) and GEMINI_API_KEY.
  */
 import { readFileSync } from 'node:fs';
+import { join } from 'node:path';
 import { buildAgentPrompt } from '../../src/shared/agent-prompt.ts';
 import type { Language, ScanResult } from '../../src/shared/contract.ts';
 import { nextField } from '../../src/shared/form-state.ts';
@@ -21,6 +22,7 @@ import { VoiceSession, type ConversationLike } from '../../src/engine/voice-sess
 import { FakePage } from '../../scripts/lib/fake-rental.ts';
 import { env } from '../src/env.ts';
 import { streamFormMap } from '../src/form-map.ts';
+import { paths } from '../src/paths.ts';
 
 const args = process.argv.slice(2);
 const opt = (name: string) => (args.includes(`--${name}`) ? args[args.indexOf(`--${name}`) + 1] : undefined);
@@ -39,7 +41,7 @@ const ts = () => `+${((Date.now() - t0) / 1000).toFixed(1).padStart(5)}s`;
 const log = (...a: unknown[]) => console.log(ts(), ...a);
 
 // --- The form: real scan, real (cached) form map, fake page ------------------------------------
-const scan = JSON.parse(readFileSync(new URL('../test-pages/scans/rental.json', import.meta.url), 'utf8')) as ScanResult;
+const scan = JSON.parse(readFileSync(join(paths.scans, 'rental.json'), 'utf8')) as ScanResult;
 const mapDone = await streamFormMap(scan, language);
 log(`form map: ${mapDone.source}, ${mapDone.map.fields.length} fields, ${mapDone.ms} ms`);
 const page = new FakePage();

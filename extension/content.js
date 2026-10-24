@@ -11,7 +11,7 @@
   };
   const panel = document.createElement('aside');
   panel.id = 'paperwise-panel';
-  panel.innerHTML = `<header>Paperwise<button aria-label="Close">×</button></header><div class="pw-bubble"><div class="pw-label"></div><div class="pw-text"></div></div><div class="pw-progress"></div><button class="pw-skip" type="button">Skip this field</button><form><input placeholder="Type your answer…" aria-label="Your answer"><button>Send</button></form>`;
+  panel.innerHTML = `<header><span style="display:flex;align-items:center;gap:8px"><img src="${chrome.runtime.getURL('icon.png')}" width="28" height="28" alt="">Paperwise</span><button aria-label="Close">×</button></header><div class="pw-bubble"><div class="pw-label"></div><div class="pw-text"></div></div><div class="pw-progress"></div><button class="pw-skip" type="button">Skip this field</button><form><input placeholder="Type your answer…" aria-label="Your answer"><button>Send</button></form>`;
   document.body.appendChild(panel);
   const label = panel.querySelector('.pw-label'), text = panel.querySelector('.pw-text'), progress = panel.querySelector('.pw-progress'), input = panel.querySelector('form input');
   let index = 0;

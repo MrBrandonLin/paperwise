@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { createFileRoute, Link, useNavigate } from '@tanstack/react-router';
-import { ArrowRight, Briefcase, Building2, Download, Ear, FileUp, Landmark, Mic, Puzzle, ShieldCheck, Sparkles, Stethoscope, Upload } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, Download, Ear, FileUp, Landmark, Mic, Puzzle, ShieldCheck, Stethoscope, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { demoScenarios } from '@/lib/extension-demo';
 import { CUSTOM_KEY, scenarioFromFile } from '@/lib/custom-upload';
 import office from '@/assets/office-arch.jpg';
+import logo from '@/assets/paperwise-logo.png.asset.json';
 
 const icons = { home: Building2, clinic: Stethoscope, briefcase: Briefcase, landmark: Landmark };
 
@@ -28,23 +29,27 @@ function DemoHub() {
     <div className="fixed inset-0 -z-10 bg-background/75" />
 
     <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-      <div className="flex items-center gap-2"><Sparkles className="size-5 text-primary" /><span className="font-display text-2xl">Paperwise</span></div>
+      <div className="flex items-center gap-2"><img src={logo.url} alt="Paperwise logo" className="size-11 drop-shadow-md" /><span className="font-display text-2xl">Paperwise</span></div>
       <span className="glass-light rounded-full px-3 py-1 text-xs text-muted-foreground">Extension demos</span>
     </header>
 
     <main className="mx-auto max-w-6xl px-6 pb-16">
       <section className="glass-light mt-6 grid gap-8 rounded-3xl p-8 sm:p-12 md:grid-cols-[1.4fr_1fr] md:items-center">
         <div>
+          <img src={logo.url} alt="" className="mb-5 size-24 drop-shadow-lg md:hidden" />
           <p className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-primary">One companion, any form</p>
           <h1 className="font-display text-4xl leading-tight sm:text-5xl">See Paperwise help on real-world websites.</h1>
           <p className="mt-4 max-w-xl text-base leading-relaxed text-muted-foreground">Pick a sample website below. Paperwise slides in from the side, highlights each field, and explains anything confusing in plain language.</p>
         </div>
+        <div className="grid gap-5">
+        <img src={logo.url} alt="" className="mx-auto hidden size-40 drop-shadow-xl md:block" />
         <ul className="grid gap-3 text-sm">
           {[[Mic, 'Always-on voice — just speak'], [Ear, 'Ask anything, anytime'], [ShieldCheck, 'Demo only — nothing is sent']].map(([Icon, text]) => {
             const I = Icon as typeof Mic;
             return <li key={text as string} className="glass-light flex items-center gap-3 rounded-xl px-4 py-3"><I className="size-4 text-primary" />{text as string}</li>;
           })}
         </ul>
+        </div>
       </section>
 
       <h2 className="mb-5 mt-14 font-display text-2xl">Choose a demo</h2>

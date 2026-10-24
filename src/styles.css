@@ -287,3 +287,19 @@
 .theme-license > div:first-child a { color: oklch(0.95 0.01 260); }
 .theme-license header { border-top: 6px solid var(--host); }
 .theme-custom { --radius: 0.5rem; }
+
+/* Paperwise extension panel — glass */
+.glass-panel {
+  background: linear-gradient(160deg, color-mix(in oklab, var(--card) 72%, transparent), color-mix(in oklab, var(--secondary) 55%, transparent));
+  border-left: 1px solid color-mix(in oklab, var(--card) 90%, transparent);
+  box-shadow: inset 1px 0 0 color-mix(in oklab, var(--card) 95%, transparent), -20px 0 50px -20px color-mix(in oklab, var(--foreground) 35%, transparent);
+  backdrop-filter: blur(22px) saturate(150%);
+}
+.glass-panel .border-border { border-color: color-mix(in oklab, var(--card) 70%, transparent); }
+@media (min-width: 701px) {
+  .panel-is-open .demo-site { margin-right: calc(var(--panel-width) - 40px); }
+  .glass-panel { top: 12px; bottom: 12px; right: 12px; border-radius: 1.5rem; border: 1px solid color-mix(in oklab, var(--card) 90%, transparent); overflow: hidden; }
+}
+@media (min-width: 701px) {
+  .panel-is-open .demo-site > div:first-child, .panel-is-open .demo-site > header { padding-right: 64px; }
+}

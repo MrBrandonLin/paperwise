@@ -1,0 +1,10 @@
+{
+  "manifest_version": 3,
+  "name": "Paperwise — Form Companion",
+  "version": "0.1.0",
+  "description": "A side panel that walks you through any website form, one question at a time.",
+  "permissions": ["activeTab", "scripting"],
+  "action": { "default_title": "Open Paperwise" },
+  "background": { "service_worker": "background.js" },
+  "icons": { "48": "icon.png", "128": "icon.png" }
+}

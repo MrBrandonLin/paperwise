@@ -29,7 +29,7 @@ function Index() {
         alt="A receptionist standing behind a curved wooden desk in a wood-panelled office"
         width={1920}
         height={1280}
-        className="absolute inset-0 h-full w-full object-cover"
+        className="absolute inset-0 h-full w-full object-cover object-[25%_center] md:object-center"
       />
       <div aria-hidden className="absolute inset-0 bg-foreground/10" />
 

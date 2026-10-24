@@ -161,7 +161,7 @@ export function ExtensionDemo({ scenario }: { scenario: DemoScenario }) {
         {messages.length > 0 && <p className="mb-3 text-[10px] uppercase tracking-wider text-muted-foreground">Your answers</p>}
         {messages.map((message, index) => <div key={index} className="mb-3 ml-9 break-words rounded-xl glass-light px-3 py-2 [--glass-tint:var(--primary)]">{message.text}</div>)}
       </div>
-      <div className="shrink-0 p-4"><div className="glass-hairline mb-3" aria-hidden="true" />>
+      <div className="shrink-0 p-4"><div className="glass-hairline mb-3" aria-hidden="true" />
         {pending && !finished && <div className="glass-light mb-3 rounded-xl p-3 [--glass-tint:var(--primary)]" role="group" aria-label="Approve assistant suggestion">
           <p className="text-[10px] font-bold uppercase tracking-wider text-primary">Add to {demoFields.find(item => item.id === pending.fieldId)?.label}</p>
           <p className="mt-1 break-words text-sm font-bold">{pending.value}</p>

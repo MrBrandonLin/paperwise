@@ -22,6 +22,15 @@ function toField(raw: string, index: number): DemoField {
   };
 }
 
+function readText(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(String(reader.result || ''));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(file);
+  });
+}
+
 async function fieldsFromPdf(file: File) {
   const { PDFDocument } = await import('pdf-lib');
   const pdf = await PDFDocument.load(await file.arrayBuffer(), { ignoreEncryption: true });
@@ -37,7 +46,7 @@ export async function scenarioFromFile(file: File): Promise<{ scenario: DemoScen
   let labels: string[] = [];
   try {
     if (file.type === 'application/pdf' || file.name.toLowerCase().endsWith('.pdf')) labels = await fieldsFromPdf(file);
-    else if (file.type.startsWith('text/') || /\.(txt|md|csv)$/i.test(file.name)) labels = fieldsFromText(await file.text());
+    else if (file.type.startsWith('text/') || /\.(txt|md|csv)$/i.test(file.name)) labels = fieldsFromText(await readText(file));
   } catch { labels = []; }
   const unique = [...new Set(labels)].slice(0, 12);
   const detected = unique.length > 0;

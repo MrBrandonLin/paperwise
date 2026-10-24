@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowDownToLine, ArrowLeft, ArrowRight, Building2, Check, CircleHelp, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
+import { ArrowDownToLine, ArrowLeft, ArrowRight, Building2, Check, Ear, Globe2, LockKeyhole, Mail, Mic, PanelRightClose, Send, Settings2, ShieldCheck, Sparkles, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { demoFields, downloadDemoPdf, nextEmptyField, type DemoValues } from '@/lib/extension-demo';
@@ -15,13 +15,11 @@ export function ExtensionDemo() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [settings, setSettings] = useState(false);
   const [largeText, setLargeText] = useState(false);
-  const [voiceMessage, setVoiceMessage] = useState('');
   const [submitted, setSubmitted] = useState(false);
   const [seal, setSeal] = useState<'idle' | 'sealing' | 'ready'>('idle');
   const [downloadError, setDownloadError] = useState('');
   const [bubbleReply, setBubbleReply] = useState('');
   const [speaking, setSpeaking] = useState(true);
-  const [listening, setListening] = useState(false);
   const panelBody = useRef<HTMLDivElement>(null);
   const field = demoFields[active];
   const completed = demoFields.filter(item => values[item.id]?.trim()).length;
@@ -29,7 +27,7 @@ export function ExtensionDemo() {
   const bubbleText = bubbleReply || (finished
     ? 'That’s everything. Nicely done! Check your answers, then save your copy below.'
     : `${completed === 0 && active === 0 ? 'Hi, I’m Paperwise. Let’s take this one question at a time. ' : ''}${field?.question || ''}`);
-  const activity = listening ? 'listening' : speaking ? 'speaking' : 'idle';
+  const activity = speaking ? 'speaking' : 'listening';
 
   useEffect(() => {
     setSpeaking(true);
@@ -42,12 +40,10 @@ export function ExtensionDemo() {
     const text = answer.trim();
     if (!text || !field) return;
     if (field.type === 'email' && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(text)) {
-      setListening(false);
       setBubbleReply('Please enter a complete email address, like name@example.com.');
       return;
     }
     if (field.type === 'number' && (!Number.isFinite(Number(text)) || Number(text) < 0)) {
-      setListening(false);
       setBubbleReply('Please enter your monthly income as a positive number.');
       return;
     }
@@ -55,10 +51,8 @@ export function ExtensionDemo() {
     setValues(updated);
     setMessages(previous => [...previous, { role: 'user', text }]);
     setAnswer('');
-    setVoiceMessage('');
     setSeal('idle');
     const next = nextEmptyField(updated);
-    setListening(false);
     setBubbleReply(next >= 0 ? `Added to ${field.label.toLowerCase()}. ${demoFields[next]?.question}` : 'That’s everything. Nicely done! Check your answers, then save your copy below.');
     if (next >= 0) setActive(next);
     setTimeout(() => panelBody.current?.scrollTo({ top: panelBody.current.scrollHeight, behavior: 'smooth' }), 100);
@@ -93,7 +87,7 @@ export function ExtensionDemo() {
             <h2 className="mb-5 flex items-center gap-3 text-base font-bold"><span className="text-xs font-normal text-muted-foreground">0{sectionIndex + 1}</span>{section}</h2>
             <div className="grid gap-x-5 gap-y-5 sm:grid-cols-2">{demoFields.map((item, index) => item.section === section && <div key={item.id} className={`${item.id === 'name' || item.id === 'address' ? 'sm:col-span-2' : ''} ${open && active === index && !finished ? 'guided-field' : ''}`}>
               <label htmlFor={`form-${item.id}`} className="mb-2 flex items-center justify-between text-xs font-bold">{item.label}<span>{values[item.id]?.trim() ? <Check className="size-3.5 text-host" /> : <span className="font-normal text-muted-foreground">Required</span>}</span></label>
-              <Input id={`form-${item.id}`} type={item.type} min={item.type === 'number' ? 0 : undefined} required value={values[item.id] || ''} placeholder={item.placeholder} onFocus={() => { setActive(index); setAnswer(''); setBubbleReply(''); setListening(false); }} onChange={event => { setValues(previous => ({ ...previous, [item.id]: event.target.value })); setSeal('idle'); }} className="h-11 rounded bg-paper text-sm shadow-none" />
+              <Input id={`form-${item.id}`} type={item.type} min={item.type === 'number' ? 0 : undefined} required value={values[item.id] || ''} placeholder={item.placeholder} onFocus={() => { setActive(index); setAnswer(''); setBubbleReply(''); }} onChange={event => { setValues(previous => ({ ...previous, [item.id]: event.target.value })); setSeal('idle'); }} className="h-11 rounded bg-paper text-sm shadow-none" />
               {item.id === 'income' && <p className="mt-2 text-[11px] text-muted-foreground">Before taxes and deductions, in USD.</p>}
             </div>)}</div>
           </section>)}
@@ -109,14 +103,17 @@ export function ExtensionDemo() {
       <div className="reception-scene relative shrink-0 overflow-hidden"><img src={office} alt="A quiet office through an arched doorway" className="absolute inset-0 size-full object-cover object-[50%_42%]" /><div className="absolute inset-0 bg-primary/10" /><div className="absolute bottom-0 inset-x-0 h-12 bg-secondary/90 border-t border-border backdrop-blur-sm" /><div className={`receptionist receptionist-${activity} absolute bottom-8 right-6`} role="img" aria-label={`Paperwise ${activity}`}><div className="receptionist-head">{activity === 'speaking' && <span className="receptionist-mouth" />}{activity === 'listening' && <Ear className="receptionist-ear" />}</div><div className="receptionist-body" /></div><div className="reception-bubble absolute rounded-lg bg-paper shadow-paper"><div className="reception-bubble-content px-4 py-3" role="status" aria-live="polite"><span className="mb-2 block text-[10px] font-bold uppercase tracking-wider text-primary">{finished ? 'Ready to review' : `Field ${active + 1} · ${field?.label}`}</span><p className={`leading-relaxed ${largeText ? 'text-lg' : 'text-sm'}`}>{bubbleText}</p></div></div><span className="absolute bottom-3 left-5 font-display text-sm text-primary">Paperwise</span><span className="absolute bottom-3 right-5 text-[10px] text-muted-foreground">{activity === 'listening' ? 'Listening' : activity === 'speaking' ? 'Speaking' : 'Ready'}</span></div>
       <div className="flex shrink-0 items-center justify-between border-b border-border px-5 py-3 text-xs"><span className="flex items-center gap-1.5 text-muted-foreground"><span className="size-1.5 rounded-full bg-host" /> Connected to this form</span><span className="font-bold text-primary">{completed}/{demoFields.length} complete</span></div>
       {settings && <div className="border-b border-border bg-secondary px-5 py-4"><div className="mb-3 flex items-center justify-between font-bold">Preferences<Button variant="ghost" size="icon" aria-label="Close settings" onClick={() => setSettings(false)}><X /></Button></div><label className="flex items-center justify-between">Larger assistant text<input type="checkbox" checked={largeText} onChange={event => setLargeText(event.target.checked)} className="size-4 accent-primary" /></label><p className="mt-3 text-xs text-muted-foreground">Language: English</p></div>}
-      <div ref={panelBody} className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
-        {!finished && <Button variant="ghost" className="mb-4 h-auto whitespace-normal px-0 py-2 text-xs text-primary hover:bg-transparent" onClick={() => { setListening(false); setBubbleReply(field?.explanation || ''); }}><CircleHelp /> What does this mean?</Button>}
+      <div ref={panelBody} className="min-h-0 flex-1 overflow-y-auto px-5">
+        <section className="voice-display" aria-label="Always-on microphone preview">
+          <div className="flex items-center justify-between gap-2 text-xs"><span className="flex items-center gap-2 font-bold text-primary"><Mic className="size-4" /><span className="size-1.5 rounded-full bg-host" />Mic always on</span><span className="text-[10px] text-muted-foreground">Demo</span></div>
+          <div className="voice-waveform" role="img" aria-label="Animated voice loudness preview">{Array.from({ length: 35 }, (_, index) => <span key={index} className="voice-wave-bar" />)}</div>
+          <div className="flex items-center justify-between text-[10px] text-muted-foreground"><span>Quiet</span><span>Voice level</span><span>Loud</span></div>
+        </section>
         {messages.length > 0 && <p className="mb-3 text-[10px] uppercase tracking-wider text-muted-foreground">Your answers</p>}
         {messages.map((message, index) => <div key={index} className="mb-3 ml-9 break-words rounded-lg bg-secondary px-3 py-2">{message.text}</div>)}
       </div>
       <div className="shrink-0 border-t border-border p-4">
-        {!finished && <form onSubmit={respond} className="rounded-lg border border-border bg-paper p-2"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onFocus={() => setListening(true)} onChange={event => { setAnswer(event.target.value); setListening(true); }} onBlur={() => setListening(false)} placeholder="Type your answer…" className="h-10 border-0 text-sm shadow-none focus-visible:ring-0" /><div className="flex items-center justify-between"><Button type="button" variant="ghost" size="icon" aria-label={listening ? 'Stop listening' : 'Voice input'} aria-pressed={listening} title="Preview listening animation (voice is not connected)" onClick={() => { setListening(!listening); setVoiceMessage(listening ? '' : 'Listening preview only. Voice is not connected; please type your answer.'); }}><Mic /></Button><span className="text-[10px] text-muted-foreground">Your words, the right field</span><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim()}><Send /></Button></div></form>}
-        {voiceMessage && <p role="status" className="mt-2 text-xs text-warning-foreground">{voiceMessage}</p>}
+        {!finished && <form onSubmit={respond} className="flex items-center gap-2 rounded-lg border border-border bg-paper p-2"><label htmlFor="assistant-answer" className="sr-only">Your answer to Paperwise</label><Input id="assistant-answer" value={answer} onChange={event => setAnswer(event.target.value)} placeholder="Type your answer…" className="h-10 min-w-0 border-0 text-sm shadow-none focus-visible:ring-0" /><Button type="submit" size="icon" aria-label="Send answer" disabled={!answer.trim()} className="shrink-0"><Send /></Button></form>}
         <div className={`mt-3 flex items-center gap-3 rounded-lg border p-3 ${finished ? 'border-primary/30 bg-filled/50' : 'border-border bg-secondary/40'}`}><div className={`relative flex size-10 shrink-0 items-center justify-center text-primary ${seal === 'sealing' ? 'demo-envelope-seal' : ''}`}>{seal === 'ready' ? <Check className="size-6" /> : <Mail className="size-6" />}{seal === 'sealing' && <span className="demo-envelope-sheet" />}</div><div className="min-w-0 flex-1"><p className="text-xs font-bold">{seal === 'sealing' ? 'Sealing your envelope…' : seal === 'ready' ? 'Your copy is downloaded' : 'Take your form with you'}</p><p className="mt-1 text-[10px] text-muted-foreground">{finished ? 'Your answers, saved as a PDF' : 'Available when all fields are filled'}</p></div><Button variant="ghost" size="icon" aria-label="Download form PDF" title="Download form PDF" disabled={!finished || seal === 'sealing'} onClick={download}><ArrowDownToLine /></Button></div>
         {downloadError && <p role="alert" className="mt-2 text-xs text-destructive">{downloadError}</p>}
         <p className="mt-3 flex items-center justify-center gap-1.5 text-[10px] text-muted-foreground"><ShieldCheck className="size-3" /> Demo only · No data leaves this page</p>

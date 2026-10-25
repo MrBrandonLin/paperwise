@@ -138,7 +138,7 @@ Full notes: `docs/real-sites.md`.
 - Contract changes (`src/shared/contract.ts`): `Language` has 11 codes; `LocalizedText` = English
   + optional others; `FormMap.language` is now the form's language; tool `come_back_later`,
   `FieldState.later`, AgentEvent `field_later`; `FieldGroup.pick: 'one'`.
-- Your repo's `paperwise/` folder is behind ours. To update it from a clone of your repo:
+- Your repo's `paperwise/` folder is up to date with ours (see `CHANGES.md`). Later updates, from a clone of your repo:
   `git subtree pull --prefix=paperwise https://github.com/Mynoxys/paperwise.git main --squash`.
 - Your Lovable `extension/` folder (detect.js, prompt.css) is a separate demo; the real extension
   is `paperwise/`.

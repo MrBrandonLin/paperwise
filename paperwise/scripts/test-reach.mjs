@@ -81,6 +81,12 @@ try {
   // --- 1. Normal case ----------------------------------------------------------------------
   console.log('\n=== Tab opened after the extension loaded');
   const form = await browser.newPage();
+  // Live bug report: "Unsafe attempt to load URL chrome-extension://…/fonts/… from frame https://www.youtube.com".
+  // The page must never load extension files itself: fonts arrive as bytes from the background.
+  const extensionLoads = [];
+  form.on('request', (r) => r.url().startsWith('chrome-extension://') && extensionLoads.push(r.url()));
+  form.on('console', (m) => /Unsafe attempt to load URL chrome-extension/.test(m.text()) && extensionLoads.push(m.text()));
+  await form.setViewport({ width: 1440, height: 900 }); // a laptop: room for the pop-up beside the form
   await form.goto(`${BASE}/test/rental.html`);
   await form.waitForSelector('paperwise-ui', { timeout: 5000 });
   // Count buttons mounted from now on (each content-script copy mounts its own).
@@ -155,6 +161,16 @@ try {
   await send({ type: 'GO_TO', id: 'pw-email' });
   await send({ type: 'FILL', id: 'pw-movein', value: '2026-12-01' });
   await sleep(300);
+  // His "Form detected" pop-up comes first; "Not now" turns it into the compact pill.
+  const prompt = await form.evaluate(() => {
+    const root = document.querySelector('paperwise-ui')?.shadowRoot;
+    const dialog = root?.querySelector('[role="dialog"]');
+    const notNow = [...(root?.querySelectorAll('button') ?? [])].find((b) => b.textContent === 'Pas maintenant');
+    notNow?.click();
+    return { title: dialog?.getAttribute('aria-label'), dismissed: !!notNow };
+  });
+  check(prompt.title === 'Besoin d’aide pour le remplir ?' && prompt.dismissed, `"Form detected" pop-up first, in French (${prompt.title})`);
+  await sleep(100);
   const ui = await form.evaluate(async () => {
     const host = document.querySelector('paperwise-ui');
     const root = host?.shadowRoot;
@@ -188,9 +204,10 @@ try {
   check(ui.bg && ui.bg !== 'rgba(0, 0, 0, 0)', `Tailwind styles apply inside the shadow root (background ${ui.bg})`);
   check(ui.height === 56, `button is h-14 = 56 px (${ui.height})`);
   check(ui.shadow && ui.shadow !== 'none', `Tailwind shadow utilities work in the shadow root (@property fix): ${ui.shadow?.slice(0, 60)}`);
-  check(ui.reviewBorder?.startsWith('oklch(0.78 0.11 80'), `review field drawn amber (${ui.reviewBorder})`);
+  check(/^oklch\(0\.(78 0\.11|8 0\.12) 80/.test(ui.reviewBorder ?? ''), `review field drawn amber, light or dark theme (${ui.reviewBorder})`);
   check(ui.typing && ui.active, 'type-it-yourself and active-field highlights drawn');
   check(ui.flash, 'fill animation shows the written value');
+  check(extensionLoads.length === 0, `the page loads no extension files (fonts come as bytes, no "Unsafe attempt to load URL"): ${extensionLoads.length ? extensionLoads.join(', ') : 'none'}`);
   check(ui.pageStyles === 0 && ui.adopted === 0 && ui.fieldOutline === 'none', `nothing added to the page's styles (style tags: ${ui.pageStyles}, adopted: ${ui.adopted}, field outline: ${ui.fieldOutline})`);
   const scaled = await form.evaluate(() => {
     document.documentElement.style.fontSize = '10px'; // a page with a small root font
@@ -200,6 +217,15 @@ try {
 
   // --- Side panel (teammate's design) --------------------------------------------------------
   console.log("\n=== Side panel: his UI, wired to the engine; debug behind Shift+D");
+  // First run shows the onboarding: covered below; the rest of the checks start after it.
+  const firstRun = await browser.newPage();
+  await firstRun.goto(`chrome-extension://${extId}/sidepanel.html`);
+  const onboarding = await firstRun.waitForFunction(() => document.body.innerText.includes('Which language do you want to use?'), { timeout: 5000 }).then(() => true, () => false);
+  check(onboarding, 'first run: onboarding (what Paperwise does, language choice)');
+  await firstRun.evaluate(() => [...document.querySelectorAll('button')].find((b) => b.textContent === 'Skip')?.click());
+  await firstRun.waitForSelector('aside[aria-label="Paperwise"]', { timeout: 5000 });
+  check(true, 'skipping the onboarding opens the panel (and it is not shown again)');
+  await firstRun.close();
   const panel = await browser.newPage();
   await panel.goto(`chrome-extension://${extId}/sidepanel.html`);
   await panel.waitForSelector('aside[aria-label="Paperwise"]', { timeout: 5000 });
@@ -222,7 +248,7 @@ try {
   await panel.click('aside button.h-12');
   await sleep(4000);
   panelText = await panel.$eval('aside', (el) => el.textContent);
-  check(panelText.includes('What you said') && /\d+\/\d+ complete/.test(panelText), 'mock session through his panel: captions + progress');
+  check(panelText.includes('Conversation') && /\d+\/\d+ complete/.test(panelText), 'mock session through his panel: conversation captions + progress');
 
   // --- 4. Pages extensions can't touch -----------------------------------------------------
   console.log("\n=== Pages where extensions can't run");

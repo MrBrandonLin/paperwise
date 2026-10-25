@@ -19,6 +19,7 @@ import type { AgentEvent, AgentMode, Language } from '../shared/contract';
 import type { Result } from '../shared/messages';
 import type { FormEngine } from './engine';
 import { nextField } from '../shared/form-state';
+import { detectLanguage, fromElevenLabs, languageInfo } from '../shared/languages';
 
 /** The parts of the SDK conversation we use. */
 export interface ConversationLike {
@@ -39,6 +40,10 @@ export interface VoiceDeps {
   libsampleratePath?: string;
   /** Optional LLM override per session (A/B speed tests). */
   llm?: string;
+  /** TTS speaking speed, 0.7–1.2 (the panel's "slower"). Fixed for a session. */
+  speed?: number;
+  /** Typing only: no microphone, the agent answers in text (captions), no audio. */
+  textOnly?: boolean;
   now?: () => number;
 }
 
@@ -50,6 +55,32 @@ export interface TurnLatency {
   /** Time spent inside our tools during the turn. */
   toolsMs: number;
 }
+
+/**
+ * "What does this mean?", "why do they need this?", "is it safe?" in our languages: the agent's
+ * reply is an explanation (shown on the panel's card).
+ */
+const ASKS_MEANING = new RegExp(
+  [
+    'what (does|do|is) .{0,30}(mean|that)', 'meaning', 'why do (they|you) need', 'is (it|this|that) safe', 'what is this for',
+    'qu[ée] significa', 'qu[ée] quiere decir', 'por qu[ée] (lo )?(necesitan|piden)', 'es seguro',
+    'veut dire', "qu'est-ce que", 'pourquoi (ils|vous|on)', 'est-ce (que c.est )?s[ûu]r',
+    'o que (significa|quer dizer)', 'por que (precisam|pedem)', '[ée] seguro',
+    'ما معنى', 'ماذا يعني', 'لماذا', 'هل هو آمن',
+    '什么意思', '为什么', '安全吗',
+    'что (значит|означает)', 'зачем', 'это безопасно',
+    'nghĩa là gì', 'tại sao', 'có an toàn',
+    'ano ang ibig sabihin', 'bakit', 'ligtas ba',
+    'मतलब', 'क्यों', 'सुरक्षित',
+    '무슨 뜻', '왜', '안전한가',
+  ].join('|'),
+  'i',
+);
+
+/** checkAnswered: the field isn't the open question (several answers at once, or a guess). */
+const VOLUNTEERED = 'volunteered';
+const NOT_ANSWERED = (id: string, last: string) =>
+  `The user has not answered ${id} yet (their last words: "${last}"). Ask its question and wait for the answer. Never fill a field the user did not answer.`;
 
 /** Fills one user answer may cause (a group question fills several fields) and how long it counts. */
 const ANSWER_CREDITS = 6;
@@ -84,6 +115,13 @@ export class VoiceSession {
   private updatePending = false;
   private idleFlush: ReturnType<typeof setTimeout> | undefined;
   private agentDraft = '';
+  /**
+   * The user asked what something means / why it's needed / if it's safe: the agent's next reply
+   * is the explanation, shown on the panel's card (whether or not the agent called explain_field).
+   */
+  private explaining: string | null = null;
+  /** The language of the user's last clear words (detectLanguage). */
+  private userSpeaks: Language | null = null;
   /** Last typed message: the server may echo it back as a user transcript (don't count it twice). */
   private typed: { text: string; at: number } | null = null;
 
@@ -116,6 +154,8 @@ export class VoiceSession {
     const state = this.engine.getState();
     if (!state.map) return { ok: false, error: 'No form map yet.' };
     const language: Language = state.userLanguage;
+    // A second session on the same form (speed change, reconnect, after a pause): "let's continue".
+    const resume = state.captions.some((c) => c.role === 'user');
 
     this.setMode('connecting');
     const token = await this.deps.getToken();
@@ -130,11 +170,17 @@ export class VoiceSession {
         async (params: unknown) => {
           this.turnBusy = true;
           if (t.name === 'fill_field' || t.name === 'flag_for_review') {
-            const refusal = this.checkAnswered((params as { id?: string } | null)?.id ?? '');
-            if (refusal) return JSON.stringify({ ok: false, message: refusal });
+            const id = (params as { id?: string } | null)?.id ?? '';
+            const refusal = this.checkAnswered(id);
+            if (refusal === VOLUNTEERED && t.name === 'fill_field') {
+              // The user gave this answer along with another ("I'm Ana López, born March 3rd 1990"):
+              // accepted as a proposal the user confirms (held amber, not written yet).
+              params = { ...(params as object), confidence: 0.5 };
+            } else if (refusal) return JSON.stringify({ ok: false, message: refusal === VOLUNTEERED ? NOT_ANSWERED(id, this.lastAnswer) : refusal });
           }
           const started = this.now();
           this.inTool = true;
+          if (t.name === 'explain_field') this.explaining = (params as { id?: string } | null)?.id ?? this.explaining;
           const result = await this.engine.callTool(t.name, params).finally(() => (this.inTool = false));
           this.toolsMsThisTurn += this.now() - started;
           // The agent learns the new state right here, with the result: no separate update needed
@@ -152,10 +198,12 @@ export class VoiceSession {
         overrides: {
           agent: {
             prompt: { prompt: buildAgentPrompt(state.map, state.scan, language), ...(this.deps.llm ? { llm: this.deps.llm } : {}) },
-            firstMessage: buildFirstMessage(state.map, language),
-            language,
+            firstMessage: buildFirstMessage(state.map, language, { resume }),
+            language: languageInfo(language).elevenlabs,
           },
           asr: { keywords: asrKeywords(state.scan) },
+          ...(this.deps.speed !== undefined ? { tts: { speed: Math.min(1.2, Math.max(0.7, this.deps.speed)) } } : {}),
+          ...(this.deps.textOnly ? { conversation: { textOnly: true } } : {}),
         },
         clientTools,
         workletPaths: this.deps.workletPaths,
@@ -197,6 +245,19 @@ export class VoiceSession {
     this.heardUser(t);
     this.conversation.sendUserMessage(t);
     return { ok: true, data: null };
+  }
+
+  /**
+   * The user picked another language in the panel during the conversation: ask the agent to
+   * switch (it calls language_detection, which changes its voice and speech recognition).
+   * Sent as a user message but not as an answer (no caption, no fill allowed from it).
+   */
+  requestLanguage(language: Language) {
+    if (!this.conversation) return;
+    const name = languageInfo(language).name;
+    const text = `(I chose ${name} in the Paperwise settings. Please speak ${name} with me from now on, and carry on where we were.)`;
+    this.typed = { text, at: this.now() };
+    this.conversation.sendUserMessage(text);
   }
 
   /** Microphone level 0..1 while the conversation runs (drives the voice meter). */
@@ -301,19 +362,41 @@ export class VoiceSession {
       if (!echo) this.heardUser(message);
       return;
     }
+    // Captions in plain words, whatever the model wrote (stray markdown like **bold**).
+    message = message.replace(/\*\*|__|^#+\s*/gm, '');
     this.engine.emitEvent({ type: 'transcript', role: 'agent', text: message, final: true, at: this.now() });
     this.agentDraft = '';
+    if (this.explaining) {
+      this.engine.showExplanation(this.explaining, message);
+      this.explaining = null;
+    }
+    // Safety net: the agent answered in another language than the user's (it didn't switch).
+    // Tell it once it listens again; the next answer comes in the user's language.
+    const replied = detectLanguage(message);
+    if (this.userSpeaks && replied && replied !== this.userSpeaks) {
+      const name = languageInfo(this.userSpeaks).name;
+      this.notify(`The user speaks ${name}. Call language_detection with ${name} and answer only in ${name} from now on.`);
+    }
   }
 
   /** The user answered (spoken final transcript, or typed): caption + permission to fill. */
   private heardUser(message: string) {
     this.engine.emitEvent({ type: 'transcript', role: 'user', text: message, final: true, at: this.now() });
+    // The user changed language without asking (just answered in Russian): the panel follows at
+    // once (captions, words, RTL); the agent is told by its prompt to answer in their language.
+    const spoken = detectLanguage(message);
+    if (spoken) this.userSpeaks = spoken;
+    if (spoken && spoken !== this.engine.getState().userLanguage) this.engine.setLanguage(spoken);
     this.turnBusy = true;
     this.answerCredits = ANSWER_CREDITS;
     this.creditsAt = this.now();
     this.answerable = this.answerTargets();
     this.lastAnswer = message;
     this.transcriptAt = this.now();
+    if (ASKS_MEANING.test(message)) {
+      const s = this.engine.getState();
+      this.explaining = nextField(s)?.id ?? s.activeFieldId ?? null;
+    }
     // Heard the user, the agent is now working on the answer.
     if (this.mode === 'listening') this.setMode('thinking');
   }
@@ -332,6 +415,13 @@ export class VoiceSession {
       }
     } else if (e.type === 'interruption') {
       this.setMode('listening');
+    } else if (e.type === 'agent_tool_response_full_payload' || e.type === 'agent_tool_response') {
+      // ElevenLabs' language_detection switched the conversation language: the panel follows.
+      const payload = (e.agent_tool_response_full_payload ?? e.agent_tool_response) as { tool_name?: string; full_tool_result?: string } | undefined;
+      if (payload?.tool_name === 'language_detection') {
+        const language = languageFromToolResult(payload.full_tool_result);
+        if (language && language !== this.engine.getState().userLanguage) this.engine.setLanguage(language);
+      }
     }
   }
 
@@ -362,10 +452,9 @@ export class VoiceSession {
     if (this.answerCredits <= 0 || this.now() - this.creditsAt > ANSWER_CREDIT_MS) {
       return 'The user has not answered yet. Ask the question (once) and wait for their answer. Never fill a field without an answer.';
     }
-    if (!this.answerable.has(id)) {
-      return `The user has not answered ${id} yet (their last words: "${this.lastAnswer}"). Ask its question and wait for the answer. Never fill a field the user did not answer.`;
-    }
     this.answerCredits--;
+    // Not the open question: maybe the user answered several at once. Allowed only as a proposal.
+    if (!this.answerable.has(id)) return VOLUNTEERED;
     return null;
   }
 
@@ -401,4 +490,20 @@ export class VoiceSession {
     this.conversation = null;
     this.setMode('off');
   }
+}
+
+/** The language in language_detection's result (JSON or text, ElevenLabs codes like "es" / "fil"). */
+export function languageFromToolResult(result: string | undefined): Language | null {
+  if (!result) return null;
+  try {
+    const json = JSON.parse(result) as Record<string, unknown>;
+    for (const key of ['language', 'language_code', 'new_language', 'detected_language']) {
+      const found = fromElevenLabs(typeof json[key] === 'string' ? (json[key] as string) : undefined);
+      if (found) return found;
+    }
+  } catch {
+    // not JSON
+  }
+  const m = /\b(?:language(?:_code)?|to)\W{0,3}([a-z]{2,3}(?:-[A-Za-z]{2,4})?)\b/i.exec(result);
+  return m ? fromElevenLabs(m[1]!.toLowerCase()) : null;
 }

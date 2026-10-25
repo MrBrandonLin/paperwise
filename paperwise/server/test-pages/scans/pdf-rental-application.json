@@ -1,0 +1,207 @@
+{
+  "url": "file:///pdf/034bcde65a361c91e65f0b46df9079fa",
+  "pageTitle": "Rental Application",
+  "pageLanguage": "en",
+  "fields": [
+    {
+      "id": "pw-Page1-f1_01",
+      "kind": "text",
+      "label": "Applicant's full legal name (first, middle, last)",
+      "name": "topmostSubform[0].Page1[0].f1_01[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3"
+    },
+    {
+      "id": "pw-Page1-f1_02",
+      "kind": "text",
+      "label": "2 Date of birth (MM/DD/YYYY)",
+      "name": "topmostSubform[0].Page1[0].f1_02[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3"
+    },
+    {
+      "id": "pw-Page1-f1_03",
+      "kind": "text",
+      "label": "3 Email address",
+      "name": "topmostSubform[0].Page1[0].f1_03[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3"
+    },
+    {
+      "id": "pw-Page1-f1_04",
+      "kind": "text",
+      "label": "4 Phone number",
+      "name": "topmostSubform[0].Page1[0].f1_04[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3"
+    },
+    {
+      "id": "pw-Page1-dd1",
+      "kind": "select",
+      "label": "5 State / Province",
+      "name": "topmostSubform[0].Page1[0].dd1[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": " ",
+      "filled": true,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3",
+      "options": [
+        {
+          "value": "CA",
+          "label": "California"
+        },
+        {
+          "value": "NY",
+          "label": "New York"
+        },
+        {
+          "value": "TX",
+          "label": "Texas"
+        },
+        {
+          "value": "QC",
+          "label": "Quebec"
+        }
+      ]
+    },
+    {
+      "id": "pw-Page1-rb1",
+      "kind": "radio",
+      "label": "6 Do you currently rent or own your home?",
+      "name": "topmostSubform[0].Page1[0].rb1[0]",
+      "required": false,
+      "visible": true,
+      "options": [
+        {
+          "value": "1",
+          "label": "Rent"
+        },
+        {
+          "value": "2",
+          "label": "Own"
+        },
+        {
+          "value": "3",
+          "label": "Other"
+        }
+      ],
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 1 of 3"
+    },
+    {
+      "id": "pw-Header-ApplicantName",
+      "kind": "text",
+      "label": "Applicant name (repeated on each page)",
+      "name": "topmostSubform[0].Header[0].ApplicantName[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 2 of 3"
+    },
+    {
+      "id": "pw-Page2-f2_01",
+      "kind": "text",
+      "label": "7 Employer name",
+      "name": "topmostSubform[0].Page2[0].f2_01[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 2 of 3"
+    },
+    {
+      "id": "pw-Page2-f2_02",
+      "kind": "text",
+      "label": "8 Gross monthly income ($)",
+      "name": "topmostSubform[0].Page2[0].f2_02[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 2 of 3"
+    },
+    {
+      "id": "pw-Page2-c2_1",
+      "kind": "checkbox",
+      "label": "I have pets",
+      "name": "topmostSubform[0].Page2[0].c2_1[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "false",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 2 of 3"
+    },
+    {
+      "id": "pw-Page3-f3_01",
+      "kind": "text",
+      "label": "9 Social Security Number",
+      "name": "topmostSubform[0].Page3[0].f3_01[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": true,
+      "sectionHint": "Page 3 of 3"
+    },
+    {
+      "id": "pw-Page3-f3_02",
+      "kind": "text",
+      "label": "10 Bank account number (for deposit refunds)",
+      "name": "topmostSubform[0].Page3[0].f3_02[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": true,
+      "sectionHint": "Page 3 of 3"
+    },
+    {
+      "id": "pw-Page3-c3_1",
+      "kind": "checkbox",
+      "label": "I authorize the landlord to obtain my credit report.",
+      "name": "topmostSubform[0].Page3[0].c3_1[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "false",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 3 of 3"
+    },
+    {
+      "id": "pw-Page3-f3_03",
+      "kind": "text",
+      "label": "11 Today’s date",
+      "name": "topmostSubform[0].Page3[0].f3_03[0]",
+      "required": false,
+      "visible": true,
+      "currentValue": "",
+      "filled": false,
+      "sensitive": false,
+      "sectionHint": "Page 3 of 3"
+    }
+  ]
+}

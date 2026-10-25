@@ -127,7 +127,7 @@ try {
       const shown = f.result.ok ? (f.sensitive ? `(hidden, filled: ${f.result.data.filled})` : `"${f.result.data.value}"`) : f.result.error;
       check(f.result.ok, `fill ${id} (${f.kind}${f.sensitive ? ', sensitive' : ''}) "${f.requested}" → ${shown}`);
     }
-    check(!fill.events.some((e) => e.type === 'EVENT_USER_EDIT'), 'our own fills are not reported as user edits');
+    check(!fill.events.some((e) => e.type === 'EVENT_USER_EDIT'), `our own fills are not reported as user edits ${fill.events.filter((e) => e.type === 'EVENT_USER_EDIT').map((e) => `${e.id}=${e.value}`).join(', ')}`);
     if (!react) {
       // Plain form: conditional fields are in the page but hidden → scanned with visible: false.
       check(
@@ -253,6 +253,24 @@ try {
     const cosigner = edits.filter((e) => e.id === 'pw-cosigner');
     check(cosigner.length === 1 && cosigner[0].value === 'Paul Martin', `typing reported once, debounced: ${JSON.stringify(cosigner)}`);
     check(edits.some((e) => e.id === 'pw-credit' && e.value === 'false'), 'checkbox click reported');
+
+    // A widget that takes our value, then puts its own back (React date pickers): reported, not a silent success.
+    if (!react) {
+      const reverted = await page.evaluate(async () => {
+        window.__events.length = 0;
+        const input = document.querySelector('#cosigner');
+        const keep = 'Kept by the widget';
+        const reset = () => setTimeout(() => {
+          Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(input, keep);
+        }, 100);
+        input.addEventListener('input', reset);
+        const r = window.__pw.handle({ type: 'FILL', id: 'pw-cosigner', value: 'Ana Lopez' });
+        await new Promise((res) => setTimeout(res, 900));
+        input.removeEventListener('input', reset);
+        return { fillOk: r.ok, events: window.__events.filter((e) => e.type === 'EVENT_USER_EDIT' && e.id === 'pw-cosigner').map((e) => e.value) };
+      });
+      check(reverted.fillOk && reverted.events.includes('Kept by the widget'), `a widget that resets our value is reported (${JSON.stringify(reverted.events)})`);
+    }
 
     // SENSITIVE: the user types an SSN on the page. It must never reach anything we send out.
     const SSN = '987-65-4321';

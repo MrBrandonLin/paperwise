@@ -4,13 +4,15 @@
  * Creates (or updates) the Paperwise agent in ElevenLabs through the API, so nothing has to be
  * clicked by hand and the tool names can't drift from the code:
  *   1. the six client tools from src/shared/agent-tools.ts ("wait for response" on)
- *   2. the agent: LLM, voice, fast TTS, turn-taking, languages (en + fr), client events,
- *      allowed overrides (prompt, LLM, first message, language, ASR keywords), auth on
+ *   2. the agent: LLM, voice, multilingual TTS (Eleven v4 Turbo), turn-taking, 11 languages with
+ *      ElevenLabs' language_detection tool (switch mid-conversation), client events, allowed
+ *      overrides (prompt, LLM, first message, language, ASR keywords, TTS speed, text-only), auth on
  * Needs ELEVENLABS_API_KEY. With ELEVENLABS_AGENT_ID set, the agent is updated in place;
  * otherwise a new one is created and its id printed (put it in server/.env).
  */
 import { AGENT_BASE_PROMPT } from '../../src/shared/agent-prompt.ts';
 import { AGENT_TOOLS } from '../../src/shared/agent-tools.ts';
+import { LANGUAGES } from '../../src/shared/languages.ts';
 import { env } from '../src/env.ts';
 
 const API = 'https://api.elevenlabs.io/v1/convai';
@@ -25,6 +27,15 @@ export const AGENT_SETTINGS = {
       language: 'en',
       prompt: {
         prompt: AGENT_BASE_PROMPT, // replaced per session with the form map baked in
+        // Switch voice + speech recognition when the user speaks or asks for another language.
+        built_in_tools: {
+          language_detection: {
+            type: 'system',
+            name: 'language_detection',
+            description: '',
+            params: { system_tool_type: 'language_detection', only_at_conversation_start: false },
+          },
+        },
         llm: env.elevenlabsLlm,
         temperature: 0.2,
         // No thinking: it delays every turn.
@@ -32,9 +43,10 @@ export const AGENT_SETTINGS = {
       },
     },
     tts: {
-      // Fastest TTS. ElevenLabs requires flash/turbo v2 for an English-primary agent and uses
-      // its multilingual flash for the other languages (French).
-      model_id: 'eleven_flash_v2',
+      // Eleven v4 Turbo: 90+ languages from one voice, ~100 ms (docs, 2026-10-24). Flash v2 was
+      // English-only. Plain delivery: no expressive audio tags in captions.
+      model_id: env.elevenlabsTtsModel,
+      expressive_mode: false,
       ...(env.elevenlabsVoiceId ? { voice_id: env.elevenlabsVoiceId } : {}),
       speed: 0.95, // a touch slower: many users are elderly or not native speakers
     },
@@ -56,17 +68,25 @@ export const AGENT_SETTINGS = {
         'agent_response_correction',
         'agent_chat_response_part',
         'client_tool_call',
+        // language_detection switched the language: the panel follows (captions, words, RTL).
+        'agent_tool_response',
+        'agent_tool_response_full_payload', // carries the tool's result: which language
         'vad_score',
         'ping',
       ],
     },
-    language_presets: { fr: { overrides: { agent: { language: 'fr' } } } },
+    // Every language the agent may switch to (language_detection picks among these).
+    language_presets: Object.fromEntries(
+      LANGUAGES.filter((l) => l.code !== 'en').map((l) => [l.elevenlabs, { overrides: { agent: { language: l.elevenlabs } } }]),
+    ),
   },
   platform_settings: {
     overrides: {
       conversation_config_override: {
         agent: { first_message: true, language: true, prompt: { prompt: true, llm: true } },
         asr: { keywords: true },
+        tts: { speed: true }, // the panel's "slower" speaking speed
+        conversation: { text_only: true }, // typing only, no microphone
       },
     },
     auth: { enable_auth: true },
@@ -152,4 +172,4 @@ if (env.elevenlabsAgentId) {
   const created = await api<{ agent_id: string }>('POST', '/agents/create', body);
   console.log(`\nCreated agent ${created.agent_id}.\nAdd this line to server/.env, then restart the server:\n  ELEVENLABS_AGENT_ID=${created.agent_id}`);
 }
-console.log(`LLM: ${env.elevenlabsLlm} · TTS: eleven_flash_v2 (multilingual flash for fr) · languages: en + fr · auth on`);
+console.log(`LLM: ${env.elevenlabsLlm} · TTS: ${env.elevenlabsTtsModel} · languages: ${LANGUAGES.map((l) => l.code).join(', ')} + language_detection · auth on`);

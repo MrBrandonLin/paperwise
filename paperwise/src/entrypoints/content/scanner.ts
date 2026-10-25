@@ -1,5 +1,8 @@
 import type { FieldKind, FieldOption, ScannedField, ScanResult } from '@/shared/contract';
-import { FIELD_ATTR, SENSITIVE_ATTR } from '@/shared/config';
+import { isSearchField } from '@/shared/form-detect';
+import { DOCUMENT_TITLE_ATTR, DOCUMENT_URL_ATTR, FIELD_ATTR, GROUP_QUESTION_ATTR, SENSITIVE_ATTR } from '@/shared/config';
+
+const HONEYPOT = /honey ?pot|(^|[_\s-])hp([_\s-]|$)|ak_hp|leave.?(this.?)?(field.?)?(blank|empty)|do.?not.?fill/i;
 
 /** Input types we never touch. */
 const SKIPPED_INPUT_TYPES = new Set([
@@ -59,6 +62,8 @@ export function scanPage(): ScanResult {
 function scanNow(): ScanResult {
   const found: { field: ScannedField; scope: HTMLFormElement | null }[] = [];
   const seenRadioGroups = new Set<string>();
+  // One field shown in several places (a PDF field printed on two pages) carries one id: scan it once.
+  const seenIds = new Set<string>();
 
   const elements = document.querySelectorAll<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>(
     'input, select, textarea',
@@ -66,6 +71,10 @@ function scanNow(): ScanResult {
 
   for (const el of elements) {
     if (el.disabled) continue;
+    // Read-only: the page shows it, nobody can change it (and we can't fill it).
+    if (!(el instanceof HTMLSelectElement) && el.readOnly) continue;
+    // Anti-spam traps ("honeypots"): hidden fields that people must leave empty.
+    if (HONEYPOT.test(`${el.name} ${el.id} ${el.className}`) || (el.tabIndex === -1 && !isVisible(el))) continue;
     const kind = kindOf(el);
     if (!kind) continue;
 
@@ -78,18 +87,37 @@ function scanNow(): ScanResult {
       continue;
     }
 
-    found.push({ field: scanSingle(el, kind), scope: el.form });
+    const preset = el.getAttribute(FIELD_ATTR);
+    if (preset && seenIds.has(preset)) continue;
+    const field = scanSingle(el, kind);
+    seenIds.add(field.id);
+    found.push({ field, scope: el.form });
   }
 
   const scopesWithVisible = new Set(found.filter((f) => f.field.visible).map((f) => f.scope));
-  const fields = found.filter((f) => f.field.visible || scopesWithVisible.has(f.scope)).map((f) => f.field);
+  const fields = withoutExtras(found.filter((f) => f.field.visible || scopesWithVisible.has(f.scope))).map((f) => f.field);
 
+  const root = document.documentElement;
   return {
-    url: location.href,
-    pageTitle: document.title,
+    url: root.getAttribute(DOCUMENT_URL_ATTR) || location.href,
+    pageTitle: root.getAttribute(DOCUMENT_TITLE_ATTR) || document.title,
     pageLanguage: document.documentElement.lang || undefined,
     fields,
   };
+}
+
+/**
+ * Not part of the form the user wants to fill: the site's search box, and a small login box
+ * (sidebar "Customer login") next to a bigger form. Both would otherwise become questions.
+ */
+function withoutExtras(found: { field: ScannedField; scope: HTMLFormElement | null }[]) {
+  const rest = found.filter((f) => !isSearchField(f.field));
+  const byScope = new Map<HTMLFormElement | null, ScannedField[]>();
+  for (const f of rest) byScope.set(f.scope, [...(byScope.get(f.scope) ?? []), f.field]);
+  const isLogin = (fs: ScannedField[]) => fs.length <= 3 && fs.some((f) => f.kind === 'password');
+  const biggest = Math.max(0, ...[...byScope.values()].filter((fs) => !isLogin(fs)).map((fs) => fs.length));
+  if (biggest < 3) return rest;
+  return rest.filter((f) => !isLogin(byScope.get(f.scope) ?? []));
 }
 
 function scanSingle(
@@ -143,7 +171,11 @@ function scanRadioGroup(first: HTMLInputElement): ScannedField {
   const id = radios.map((r) => r.getAttribute(FIELD_ATTR)).find(Boolean) ?? uniqueId(first.name, radios);
   radios.forEach((r) => r.setAttribute(FIELD_ATTR, id));
 
-  const options: FieldOption[] = radios.map((r) => ({ value: r.value, label: labelOf(r) }));
+  const options: FieldOption[] = radios.map((r) => {
+    const label = labelOf(r);
+    // No value attribute → every radio says "on": the label is the only thing that tells them apart.
+    return { value: r.getAttribute('value') === null ? label : r.value, label };
+  });
   const checked = radios.find((r) => r.checked);
   const fieldset = first.closest('fieldset');
 
@@ -237,6 +269,8 @@ const SENSITIVE_TEXT = new RegExp(
   'i',
 );
 
+const SENSITIVE_COMPACT = /(ccnum|cardnum|creditcard|debitcard|cardno|cvc|cvv|ccv|cardsecurity|securitycode|ccexp|cardexp|socialsecurity|ssn|routingnum|accountnum|acctnum|iban|swiftcode|password|passcode|pincode)/;
+
 /** Decide if a field is sensitive and mark it on the element (the filler and watchers read the mark). */
 function markSensitive(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement, kind: FieldKind, label: string): boolean {
   const autocomplete = (el.getAttribute('autocomplete') ?? '').toLowerCase().split(/\s+/);
@@ -244,8 +278,10 @@ function markSensitive(el: HTMLInputElement | HTMLSelectElement | HTMLTextAreaEl
     .join(' ')
     .replace(/([a-z])([A-Z])/g, '$1 $2') // accountNumber → account Number
     .replace(/[_.\-[\]]+/g, ' '); // applicant_ssn → applicant ssn
+  // Ids glued together ("41ccnumber", "cardCVV2"): match without word boundaries too.
+  const compact = [el.name, el.id, label].join(' ').toLowerCase().replace(/[^a-z]/g, '');
   const sensitive =
-    kind === 'password' || autocomplete.some((a) => SENSITIVE_AUTOCOMPLETE.has(a)) || SENSITIVE_TEXT.test(words);
+    kind === 'password' || autocomplete.some((a) => SENSITIVE_AUTOCOMPLETE.has(a)) || SENSITIVE_TEXT.test(words) || SENSITIVE_COMPACT.test(compact);
   if (sensitive) el.setAttribute(SENSITIVE_ATTR, 'true');
   else el.removeAttribute(SENSITIVE_ATTR);
   return sensitive;
@@ -288,11 +324,11 @@ function labelOf(el: HTMLElement): string {
   const fieldEl = el as HTMLInputElement;
   const firstLabel = fieldEl.labels?.[0];
   if (firstLabel) {
-    const text = clean(firstLabel.textContent);
+    const text = clean(ownText(firstLabel));
     if (text) return text;
   }
   const aria = el.getAttribute('aria-label');
-  if (aria) return clean(aria);
+  if (aria && !isGeneric(aria, el)) return clean(aria);
   const labelledBy = el.getAttribute('aria-labelledby');
   if (labelledBy) {
     const text = clean(
@@ -305,17 +341,60 @@ function labelOf(el: HTMLElement): string {
   }
   if (fieldEl.placeholder) return clean(fieldEl.placeholder);
   if (el.title) return clean(el.title);
+  const nearby = nearbyText(el);
+  if (nearby) return nearby;
+  if (aria) return clean(aria);
   return fieldEl.name || el.id || 'Unlabeled field';
+}
+
+/** A label's own words, without the text of controls inside it (a <select>'s options). */
+function ownText(label: HTMLElement): string {
+  if (!label.querySelector('select, textarea, input')) return label.textContent ?? '';
+  const copy = label.cloneNode(true) as HTMLElement;
+  copy.querySelectorAll('select, textarea, input, option, datalist').forEach((n) => n.remove());
+  return copy.textContent ?? '';
+}
+
+/** aria-labels that say nothing ("checkbox", "input", the field's own id). */
+function isGeneric(aria: string, el: HTMLElement): boolean {
+  const a = aria.trim().toLowerCase();
+  return /^(checkbox|radio|input|text|textbox|select|field|button|option|on)$/.test(a) || a === (el.id || '').toLowerCase() || a === ((el as HTMLInputElement).name || '').toLowerCase();
+}
+
+/**
+ * Visible text right next to an unlabeled field: the text just before it in its container,
+ * or the table cell before it ("Name: [____]" layouts).
+ */
+function nearbyText(el: HTMLElement): string {
+  const cell = el.closest('td, th');
+  if (cell?.previousElementSibling) {
+    const text = clean(cell.previousElementSibling.textContent);
+    if (text && text.length <= 80) return text;
+  }
+  for (let n: Node | null = el.previousSibling; n; n = n.previousSibling) {
+    if (n instanceof HTMLElement && n.matches('input, select, textarea, br')) break;
+    const text = clean(n.textContent);
+    if (text) return text.length <= 80 ? text : '';
+  }
+  const parent = el.parentElement;
+  if (parent && parent.querySelectorAll('input, select, textarea').length === 1) {
+    const text = clean(ownText(parent));
+    if (text && text.length <= 80) return text;
+  }
+  return '';
 }
 
 /**
  * The radio group's OWN question ("Do you have pets?"), not the section it sits in:
+ *  0. the question our own pages give it (GROUP_QUESTION_ATTR, PDF viewer)
  *  1. the radiogroup's aria-label / aria-labelledby
  *  2. the fieldset legend, only if that fieldset holds nothing but this group
  *  3. the text just before the group (e.g. <p>Do you have pets?</p><div>…radios…</div>)
  */
 function groupQuestionOf(radios: HTMLInputElement[], fieldset: HTMLFieldSetElement | null): string {
   const first = radios[0]!;
+  const given = clean(first.getAttribute(GROUP_QUESTION_ATTR));
+  if (given) return given;
   const group = first.closest<HTMLElement>('[role="radiogroup"]');
   if (group) {
     const aria = clean(group.getAttribute('aria-label'));

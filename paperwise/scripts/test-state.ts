@@ -3,7 +3,9 @@
  * shared reducer (also driven by the mock player, like the teammate's UI will be).
  * Runs in Node: the page is a small fake that behaves like /test/rental.html.
  */
-import type { AgentEvent, FormState, Language } from '../src/shared/contract';
+import type { AgentEvent, FormState, Language, ScannedField } from '../src/shared/contract';
+import { looksLikeAForm } from '../src/shared/form-detect';
+import { detectLanguage } from '../src/shared/languages';
 import { FormEngine } from '../src/engine/engine';
 import { validateValue } from '../src/engine/validate';
 import { askOrder, initialFormState, nextField, progress, reduceFormState } from '../src/shared/form-state';
@@ -19,7 +21,7 @@ const check = (cond: unknown, msg: string) => {
   console.log(`  ${cond ? 'PASS' : 'FAIL'}  ${msg}`);
 };
 
-import { F, FakePage, rentalMap } from './lib/fake-rental';
+import { F, FakePage, rentalMap, scan0 } from './lib/fake-rental';
 
 // ---------------------------------------------------------------------------------------------
 console.log('\n=== Validators');
@@ -315,6 +317,79 @@ console.log('\n=== UI adapter: our FormState → the teammate\'s panel');
   check(view.screen === 'finished' && view.bubble.text === fr.allAnswered, 'all answered + conversation over → "press Submit yourself"');
   const en = toPanelView({ ...engine.getState(), userLanguage: 'en' });
   check(en.bubble.text === COPY.en.allAnswered && en.copy.neverSubmit.includes('never submits'), 'English copy when the user language is English');
+}
+
+// ---------------------------------------------------------------------------------------------
+console.log('\n=== Smarter brain: "come back later", pick-one sets, translation guard');
+{
+  const { engine, page, st } = setup('en');
+  const first = 'pw-dob';
+  const r = await engine.callTool('come_back_later', { id: first });
+  check(r.ok && st().fields[first]?.later && nextField(st())?.id !== first, `come_back_later: "${first}" moves to the end (next: ${nextField(st())?.id})`);
+  const ctx = engine.contextForAgent();
+  check(ctx.includes(`Come back to before the review: ${first}`), 'the agent is reminded to come back to it');
+  // Answer everything else: the deferred one comes back before the review.
+  for (const f of askOrder(st())) if (f.id !== first) st().fields[f.id]!.status = 'filled';
+  check(nextField(st())?.id === first, `once the rest is answered, the deferred question comes back (next: ${nextField(st())?.id})`);
+  const refused = await engine.callTool('start_review', {});
+  check(!refused.ok, 'review waits for it (required)');
+  await fill(engine, first, '1958-03-04');
+  check(!st().fields[first]?.later, 'answering it clears the mark');
+
+  // Pick one: three checkboxes, one choice.
+  const { engine: e2, page: p2, st: s2 } = setup('en');
+  const map = s2().map!;
+  const boxes = ['pw-credit', 'pw-truth'];
+  e2.setMap({ ...map, groups: [...map.groups, { id: 'g-pick', plainQuestion: 'Which one applies?', fieldIds: boxes, pick: 'one' }] });
+  p2.values.set('pw-truth', 'true');
+  e2.setScan(p2.scan());
+  const picked = await fill(e2, 'pw-credit', 'true', 0.95);
+  check(picked.ok && p2.values.get('pw-truth') === 'false' && s2().fields['pw-truth']?.status === 'skipped', 'pick one: checking one unchecks and skips the others');
+
+  // Free text must be in the form's language; names never touched.
+  const { engine: e3 } = setup('es');
+  await fill(e3, 'pw-pets', 'yes'); // reveals "describe your pets"
+  const es = await fill(e3, 'pw-pets-desc', 'Un gato que se llama Michi y es muy tranquilo');
+  check(!es.ok && /form's language/.test(es.message), 'free text in Spanish on an English form → "translate it" (not written)');
+  const en = await fill(e3, 'pw-pets-desc', 'A cat named Michi, very calm');
+  check(en.ok, 'the translated text is accepted');
+  const name = await fill(e3, 'pw-first', 'José María');
+  check(name.ok, 'names are never checked for language (kept as said)');
+  void page;
+}
+
+// ---------------------------------------------------------------------------------------------
+console.log('\n=== When the launcher pops up (real forms only)');
+{
+  const base = { url: 'https://x.com', pageTitle: 'x' };
+  const f = (id: string, kind: ScannedField['kind'], label: string, extra: Partial<ScannedField> = {}): ScannedField => ({ id, kind, label, required: false, visible: true, currentValue: '', filled: false, sensitive: false, ...extra });
+  check(looksLikeAForm(scan0), 'the rental application → yes');
+  check(!looksLikeAForm({ ...base, fields: [f('q', 'text', 'Search', { name: 'search_query' }), f('h1', 'text', '', { visible: false }), f('h2', 'checkbox', '', { visible: false })] }), 'YouTube-like page (a search box) → no');
+  check(!looksLikeAForm({ ...base, fields: [f('u', 'email', 'Email'), f('p', 'password', 'Password'), f('r', 'checkbox', 'Remember me')] }), 'a login → no');
+  check(looksLikeAForm({ ...base, fields: [f('n', 'text', 'Name'), f('c', 'select', 'Country')] }), 'name + a choice → yes');
+  check(!looksLikeAForm({ ...base, fields: [f('n', 'text', 'Name'), f('e', 'email', 'Email')] }), 'a two-field newsletter box → no');
+}
+
+// ---------------------------------------------------------------------------------------------
+console.log('\n=== Which language the user is speaking (the panel follows without being asked)');
+{
+  const cases: [string, Language | null][] = [
+    ['Четвёртое марта тысяча девятьсот пятьдесят восьмого года.', 'ru'],
+    ['اسمي أحمد وأنا أعمل في مخبز', 'ar'],
+    ['我叫王伟，我在面包店工作', 'zh'],
+    ['मेरा नाम आशा है', 'hi'],
+    ['제 이름은 김민준입니다', 'ko'],
+    ['Tôi làm việc ở một tiệm bánh', 'vi'],
+    ['Me llamo Ana y trabajo en una panadería', 'es'],
+    ["Je m'appelle Marie et je suis retraitée", 'fr'],
+    ['Eu sou o João e tenho um gato', 'pt'],
+    ['Ako po si Maria, salamat po', 'tl'],
+    ['My name is Mary and I have a cat', 'en'],
+    ['OK', null],
+    ['Ana López', null],
+    ['555 0142', null],
+  ];
+  for (const [text, want] of cases) check(detectLanguage(text) === want, `"${text}" → ${detectLanguage(text)} (want ${want})`);
 }
 
 console.log(failures ? `\n${failures} FAILED, ${passes} passed` : `\nALL ${passes} PASSED`);

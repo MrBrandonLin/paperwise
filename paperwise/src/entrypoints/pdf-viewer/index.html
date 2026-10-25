@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Paperwise PDF</title>
+  </head>
+  <body>
+    <!-- Plain, functional reader UI: the teammate will design it. No h1–h4 here (the scanner
+         reads headings as section names; each page has its own). -->
+    <div class="toolbar" role="toolbar">
+      <span id="name" class="name"></span>
+      <span id="pageInfo" class="page-info" aria-live="polite"></span>
+      <!-- Buttons only: the scanner reads every input/select on this page as a form field. -->
+      <span class="zoom">
+        <button id="zoomOut" type="button">−</button>
+        <span id="zoomLevel" class="zoom-level"></span>
+        <button id="zoomIn" type="button">+</button>
+        <button id="zoomFit" type="button"></button>
+      </span>
+      <span class="spacer"></span>
+      <button id="download" type="button" disabled></button>
+    </div>
+    <p id="status" class="status" role="status" aria-live="polite"></p>
+    <main id="scroller" class="scroller" tabindex="0" aria-label="PDF">
+      <div id="viewer" class="pdfViewer"></div>
+    </main>
+    <div id="error" class="error" role="alert" hidden></div>
+    <script type="module" src="./main.ts"></script>
+  </body>
+</html>

@@ -17,6 +17,7 @@
  */
 import type { Language } from '../../../src/shared/contract.ts';
 import type { FieldStructure } from '../form-structure.ts';
+import { languageInfo } from '../../../src/shared/languages.ts';
 
 export const PART_SYSTEM_PROMPT = `
 You write the questions a friendly voice assistant asks to help someone fill a web form.
@@ -37,8 +38,14 @@ For each field, return:
 - q: the question to say out loud. Short (12 words or fewer), warm, one idea, "you".
   No jargon: if the label uses a hard word (gross, co-signer, guarantor, dependent, certify…),
   say it in plain words. Optional field: say so gently ("If you like, …").
-  Checkbox: a yes/no question that says what checking the box means ("checking this box",
-  never "signing"). Select or radio: you may list the choices in plain words.
+  Never narrow or drop what a field asks: "Full legal name (first, middle, last)" asks for the
+  whole name ("What is your full legal name, with any middle names?"), never only the first name.
+  Checkbox: ask the real question, naturally: "Do you have pets?", "Are you a partnership?". For
+  consent: "Do you allow the landlord to check your credit report?". Never "Does checking this
+  box mean…" or "Check this box if…". Select or radio: you may list the choices in plain words.
+  Checkboxes sharing a one_of value are ONE "pick one" question: give each of them the same g,
+  a question listing the choices in plain words ("Which one describes you: an individual, a
+  C corporation, …?"); each still gets its own short q.
 - r: only for risky fields. "legal" = consent, authorization, agreement, certifying something is
   true. "important" = a mistake has real consequences: money, income, date of birth, dates that
   start a contract, someone else taking responsibility. Omit r for everything else.
@@ -58,10 +65,13 @@ Use only the ids given.
 `.trim();
 
 
-const LANGUAGE_LINE: Record<Language, string> = {
+/** The map is written in the form's own language (the agent translates when it speaks). */
+const LANGUAGE_LINE: Partial<Record<Language, string>> = {
   en: 'Write every text in simple English.',
+  es: 'Write every text in simple, natural Spanish: polite "usted", everyday words. Optional field: "Si lo desea, …".',
   fr: 'Write every text in simple, natural French: polite "vous", everyday words, not a word-for-word translation. Optional field: "Si vous le souhaitez, …".',
 };
+const languageLine = (language: Language) => LANGUAGE_LINE[language] ?? `Write every text in simple, natural ${languageInfo(language).name}.`;
 
 export interface PartSection {
   id: string;
@@ -81,7 +91,7 @@ export function buildPartPrompt(opts: {
   earlier: FieldStructure[];
   whole?: { sectionTitles: string[]; labels: string[] };
 }): string {
-  const lines = [LANGUAGE_LINE[opts.language], `Form: ${JSON.stringify(opts.pageTitle)}`];
+  const lines = [languageLine(opts.language), `Form: ${JSON.stringify(opts.pageTitle)}`];
   if (opts.whole) {
     lines.push(
       'Also return "title" (short friendly name of the whole form, e.g. "Rental application") and "summary" (1–2 plain sentences: what the form is for).',
@@ -118,6 +128,7 @@ function compactField(f: FieldStructure, refOnly: boolean): Record<string, unkno
     ...(options?.length ? { options } : {}),
     ...(f.helpText ? { help: f.helpText } : {}),
     ...(f.placeholder && f.placeholder !== f.label ? { placeholder: f.placeholder } : {}),
+    ...(f.oneOf ? { one_of: f.oneOf } : {}),
   };
 }
 

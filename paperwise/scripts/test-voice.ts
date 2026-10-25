@@ -41,7 +41,7 @@ class FakeConversation implements ConversationLike {
   }
 }
 
-function setup(language: 'en' | 'fr' = 'fr', tokenOk = true) {
+function setup(language: 'en' | 'fr' | 'ru' = 'fr', tokenOk = true) {
   const page = new FakePage();
   const engine = new FormEngine(page, language);
   engine.setScan(page.scan());
@@ -71,14 +71,18 @@ console.log('\n=== Session start');
   check(ok.ok && session.active, 'started');
   check(o.conversationToken === 'tok-123' && o.connectionType === 'webrtc', 'WebRTC with our token');
   const prompt: string = o.overrides.agent.prompt.prompt;
-  check(prompt.includes('Speak only French') && prompt.includes('never submit'), 'prompt: rules + French');
+  check(prompt.includes('Start in French') && prompt.includes('polite form') && prompt.includes('never submit'), 'prompt: rules + French conversation, polite "vous"');
+  check(prompt.includes('even without asking') && prompt.includes('FIRST call') && prompt.includes('NEVER translate or respell proper nouns'), 'prompt: follow the language the user speaks (asked or not); names never translated');
+  check(prompt.includes('Haitian Creole → offer French'), 'prompt: unsupported language → closest one offered');
   check(prompt.includes('pw-dob | Q Date of birth') && prompt.includes('format: YYYY-MM-DD'), 'prompt: form map lines with formats');
   check(prompt.includes('only if pw-status is employed or self'), 'prompt: conditions');
   check(prompt.includes('SENSITIVE') && prompt.includes('LEGAL'), 'prompt: risks');
   check(prompt.includes('pw-first + pw-last: "What is your full name?"'), 'prompt: group question');
-  check(o.overrides.agent.language === 'fr' && o.overrides.agent.firstMessage.startsWith('Bonjour') && o.overrides.agent.firstMessage.includes('What is your full name?'), 'first message: French welcome + first question');
+  const first: string = o.overrides.agent.firstMessage;
+  check(o.overrides.agent.language === 'fr' && first.startsWith('Bonjour') && first.endsWith('On commence ?'), `first message: French welcome, then "shall we start?" (${first.slice(0, 60)}…)`);
+  check(first.includes('taper vous-même') && first.includes('ce que cela veut dire'), 'first message: what to know before starting (private numbers typed, agreements explained)');
   check(o.overrides.asr.keywords.includes('Self-employed'), 'ASR keywords from the choices');
-  check(AGENT_TOOLS.every((t) => typeof o.clientTools[t.name] === 'function') && Object.keys(o.clientTools).length === 6, 'all six client tools registered');
+  check(AGENT_TOOLS.every((t) => typeof o.clientTools[t.name] === 'function') && Object.keys(o.clientTools).length === AGENT_TOOLS.length && AGENT_TOOLS.length === 7, 'all seven client tools registered (incl. come_back_later)');
   check(o.workletPaths.rawAudioProcessor.startsWith('chrome-extension://'), 'worklets served by the extension');
   check(engine.getState().agentMode === 'connecting', 'agent_state: connecting');
   o.onConnect({ conversationId: 'c1' });
@@ -160,7 +164,9 @@ console.log('\n=== Never guess: no fill without something the user said');
   const b = JSON.parse(await tools.fill_field({ id: 'pw-last', value: 'Dubois', display_value: 'Dubois', confidence: 0.95 }));
   check(a.ok && b.ok, 'one answer can fill a group (first + last name)');
   const invented = JSON.parse(await tools.fill_field({ id: 'pw-income', value: '3000', display_value: 'trois mille', confidence: 1 }));
-  check(!invented.ok && invented.message.includes('has not answered pw-income') && page.fills('pw-income') === 0, 'an invented answer for another question is refused (live bug)');
+  // Not the open question: maybe the user said several things at once. Never written straight
+  // away: held (amber) until the user confirms (live bug: the agent invented an income).
+  check(!invented.ok && /confirm/i.test(invented.message) && page.fills('pw-income') === 0, `an answer for another question is not written: held for the user to confirm (${invented.message.slice(0, 50)}…)`);
   const correction = JSON.parse(await tools.fill_field({ id: 'pw-first', value: 'Marie-Anne', display_value: 'Marie-Anne', confidence: 0.95 }));
   check(correction.ok, 'correcting an earlier answer is allowed');
   for (let i = 0; i < 4; i++) await tools.flag_for_review({ id: 'pw-dob', reason: 'loop' });
@@ -250,6 +256,32 @@ console.log('\n=== Turn latency: user stops talking → agent starts speaking');
   check(session.turns.length === 1, 'a short blip is not counted as a user turn');
   const s = session.stats();
   check(s.count === 1 && s.medianMs === t!.totalMs, 'stats');
+  await session.end();
+}
+
+console.log('\n=== The user switches language without asking (Russian, live bug)');
+{
+  const { session, convo, engine } = setup('en');
+  await session.start();
+  const o = convo().opts;
+  o.onModeChange({ mode: 'listening' });
+  o.onMessage({ source: 'user', message: 'Нет, спасибо, у меня нет электронной почты.' });
+  check(engine.getState().userLanguage === 'ru', `the panel follows at once: ${engine.getState().userLanguage}`);
+  // The agent answers in English anyway: it is told to switch once it listens again.
+  o.onMessage({ source: 'ai', message: 'Okay, no email. What is your phone number?' });
+  o.onModeChange({ mode: 'speaking' });
+  o.onModeChange({ mode: 'listening' });
+  await new Promise((r) => setTimeout(r, 400));
+  const told = convo().updates.find((u) => u.includes('The user speaks Russian'));
+  check(!!told && told.includes('language_detection'), `the agent is told to answer in Russian (${told?.slice(0, 80) ?? 'no update'})`);
+  // Answers in Russian: no correction.
+  const before = convo().updates.length;
+  o.onMessage({ source: 'user', message: 'Пять пять пять, ноль один четыре два.' });
+  o.onMessage({ source: 'ai', message: 'Спасибо. Ваш номер телефона записан.' });
+  o.onModeChange({ mode: 'speaking' });
+  o.onModeChange({ mode: 'listening' });
+  await new Promise((r) => setTimeout(r, 400));
+  check(!convo().updates.slice(before).some((u) => u.includes('The user speaks')), 'no correction when the agent already speaks Russian');
   await session.end();
 }
 

@@ -25,3 +25,9 @@ web-ext.config.ts
 
 # Form-map cache (form structure only, no user data); rebuilt on demand
 server/.cache
+
+# pdf.js runtime files, copied from node_modules on install (scripts/copy-pdf-assets.mjs)
+public/pdfjs
+
+# Throwaway local scripts
+scripts/zz-*

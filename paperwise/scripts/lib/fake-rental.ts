@@ -15,6 +15,11 @@ export class FakePage implements PageTransport {
   values = new Map<string, string>();
   calls: ContentRequest[] = [];
   refuse = new Set<string>();
+  /**
+   * reactLike: like /test/rental-react.html, conditional fields aren't in the page at all until
+   * their condition is met (React renders them), instead of being hidden.
+   */
+  constructor(private readonly opts: { reactLike?: boolean } = {}) {}
   async send<T>(req: ContentRequest): Promise<Result<T>> {
     this.calls.push(req);
     if (req.type === 'SCAN') return { ok: true, data: this.scan() as T };
@@ -29,14 +34,12 @@ export class FakePage implements PageTransport {
   scan(): ScanResult {
     const status = this.values.get('pw-status') ?? '';
     const pets = this.values.get('pw-pets') ?? '';
-    return {
-      ...scan0,
-      fields: scan0.fields.map((f) => {
-        const value = this.values.get(f.id) ?? '';
-        const visible = f.id === 'pw-employer' ? status === 'employed' || status === 'self' : f.id === 'pw-pets-desc' ? pets === 'yes' : true;
-        return { ...f, visible, currentValue: f.sensitive ? '' : value, filled: value !== '' };
-      }),
-    };
+    const fields = scan0.fields.map((f) => {
+      const value = this.values.get(f.id) ?? '';
+      const visible = f.id === 'pw-employer' ? status === 'employed' || status === 'self' : f.id === 'pw-pets-desc' ? pets === 'yes' : true;
+      return { ...f, visible, currentValue: f.sensitive ? '' : value, filled: value !== '' };
+    });
+    return { ...scan0, url: this.opts.reactLike ? 'http://localhost:8787/test/rental-react.html' : scan0.url, fields: this.opts.reactLike ? fields.filter((f) => f.visible) : fields };
   }
   fills(id: string) {
     return this.calls.filter((c) => c.type === 'FILL' && c.id === id).length;
@@ -71,3 +74,29 @@ export function rentalMap(language: Language): FormMap {
   };
 }
 
+
+/** Any form from a saved scan (the W-9): fills are kept, sensitive values never echoed. */
+export class ScanPage implements PageTransport {
+  values = new Map<string, string>();
+  calls: ContentRequest[] = [];
+  constructor(private readonly base: ScanResult) {}
+  async send<T>(req: ContentRequest): Promise<Result<T>> {
+    this.calls.push(req);
+    if (req.type === 'SCAN') return { ok: true, data: this.scan() as T };
+    if (req.type === 'FILL') {
+      this.values.set(req.id, req.value);
+      const sensitive = this.base.fields.find((f) => f.id === req.id)?.sensitive;
+      return { ok: true, data: { value: sensitive ? '' : req.value, filled: req.value !== '' && req.value !== 'false' } as T };
+    }
+    return { ok: true, data: null as T };
+  }
+  scan(): ScanResult {
+    return {
+      ...this.base,
+      fields: this.base.fields.map((f) => {
+        const value = this.values.get(f.id) ?? '';
+        return { ...f, currentValue: f.sensitive ? '' : value, filled: value !== '' && value !== 'false' };
+      }),
+    };
+  }
+}

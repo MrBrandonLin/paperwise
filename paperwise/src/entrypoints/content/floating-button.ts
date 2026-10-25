@@ -1,10 +1,11 @@
 import type { Language } from '@/shared/contract';
 import type { BackgroundRequest } from '@/shared/messages';
+import { toLanguage } from '@/shared/languages';
 import { scanPage } from './scanner';
 
-/** Best guess before the user picks: the browser's language. */
+/** The map is built in the FORM's language (the page's), whatever the user speaks. */
 function guessLanguage(): Language {
-  return navigator.language.toLowerCase().startsWith('fr') ? 'fr' : 'en';
+  return toLanguage(document.documentElement.lang) ?? 'en';
 }
 
 let prefetched = false;

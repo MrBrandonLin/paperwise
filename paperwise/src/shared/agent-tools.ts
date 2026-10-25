@@ -1,5 +1,5 @@
 /**
- * The six client tools the voice agent can call. Single source of truth:
+ * The client tools the voice agent can call. Single source of truth:
  *  - server/scripts/agent-setup.ts creates them in ElevenLabs from this list
  *  - the side panel registers a handler for each name (VoiceSession)
  * Names and parameters are case-sensitive and must match the dashboard (the setup script
@@ -64,5 +64,12 @@ export const AGENT_TOOLS: AgentToolDefinition[] = [
     name: 'start_review',
     description: 'When every question is answered: get the answers to read back section by section. If it refuses, handle the fields it lists first.',
     parameters: { type: 'object', properties: {}, required: [] },
+  },
+  {
+    name: 'come_back_later',
+    description:
+      'The user doesn’t know this answer yet, or wants to come back to it ("I don’t know", "I’ll check later"). ' +
+      'Marks the field; it is asked again after the other questions, before the review. Then move on to the next question.',
+    parameters: { type: 'object', properties: { id }, required: ['id'] },
   },
 ];

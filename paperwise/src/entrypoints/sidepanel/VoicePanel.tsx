@@ -11,7 +11,7 @@ export default function VoicePanel({ pw }: { pw: Paperwise }) {
   const active = voice.active;
   const turns = voice.turns;
   const message = voice.problem === 'mic' ? 'Allow the microphone in the tab that opened, then press Start again.' : voice.problem ? `Could not start: ${voice.problem}` : '';
-  const start = () => voice.start(llm);
+  const start = () => voice.start({ llm });
   const end = () => voice.end();
 
   const stats = voice.stats();

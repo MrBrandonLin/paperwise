@@ -19,7 +19,16 @@
   60% { opacity: 1; transform: translateY(0); }
   100% { opacity: 0; transform: translateY(0); }
 }
-@utility flow-in { animation: pw-flow 1.6s ease-out both; }
+@utility flow-in { animation: pw-flow 1.9s ease-out both; }
+/* The value types in, left to right, then the check mark pops. */
+@keyframes pw-type { from { clip-path: inset(0 100% 0 0); } to { clip-path: inset(0 0 0 0); } }
+@keyframes pw-pop { 0% { transform: scale(0); } 70% { transform: scale(1.35); } 100% { transform: scale(1); } }
+@utility type-in { animation: pw-type .55s steps(16, end) .2s both; }
+@utility check-pop { animation: pw-pop .35s ease-out .8s both; }
+/* The launcher glides to a free corner instead of jumping. */
+@utility launcher-glide { transition: left .3s ease, top .3s ease; }
 @media (prefers-reduced-motion: reduce) {
   .flow-in { animation: none; opacity: 0; }
+  .type-in, .check-pop { animation: none; }
+  .launcher-glide { transition: none; }
 }

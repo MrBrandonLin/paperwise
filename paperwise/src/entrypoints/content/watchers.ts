@@ -1,5 +1,5 @@
 import type { ScanResult } from '@/shared/contract';
-import { FIELD_ATTR } from '@/shared/config';
+import { FIELD_ATTR, RECHECK_EVENT } from '@/shared/config';
 import { isWriting, readField, type FieldReading } from './filler';
 import { markDirty, scanPage } from './scanner';
 
@@ -53,11 +53,19 @@ export function watchUserEdits(onEdit: (id: string, reading: FieldReading) => vo
     else report(id);
   };
 
+  // The filler saw the page put its own value back after our fill (React widgets): report it.
+  const onRecheck = (e: Event) => {
+    const id = (e as CustomEvent<string>).detail;
+    if (typeof id === 'string') report(id);
+  };
+
   document.addEventListener('input', onEvent, true);
   document.addEventListener('change', onEvent, true);
+  document.addEventListener(RECHECK_EVENT, onRecheck);
   return () => {
     document.removeEventListener('input', onEvent, true);
     document.removeEventListener('change', onEvent, true);
+    document.removeEventListener(RECHECK_EVENT, onRecheck);
     timers.forEach(clearTimeout);
   };
 }

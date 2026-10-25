@@ -8,6 +8,12 @@ import { VoiceSession, type ConversationLike, type TurnLatency } from '@/engine/
 import { getMicPermission } from '@/lib/mic';
 import { getActiveTabId, toBackground, toContent, UNSUPPORTED_PAGE } from '@/lib/messaging';
 import type { PanelNotice } from '@/ui/adapter';
+import { toLanguage } from '@/shared/languages';
+
+/** The form's own language: the map is built once, in it (the agent translates when it talks). */
+export function formLanguageOf(scan: ScanResult): Language {
+  return toLanguage(scan.pageLanguage) ?? 'en';
+}
 
 /**
  * Everything the side panel does, shared by the real UI (teammate's panel) and the debug panel
@@ -36,7 +42,7 @@ export function usePaperwise() {
 
     engine.onMapStale = (scan) => {
       write('page shows fields the map does not know → updating the map (only the new fields are mapped)');
-      void buildMap(scan, engine.getState().userLanguage);
+      void buildMap(scan, formLanguageOf(scan));
     };
 
     const onEvent = (msg: ExtensionEvent, sender: { tab?: { id?: number } }) => {
@@ -115,7 +121,7 @@ export function usePaperwise() {
       return engine.setPhase('idle');
     }
     engine.setPhase('understanding');
-    await buildMap(s, language);
+    await buildMap(s, formLanguageOf(s));
   }
 
   async function buildMap(s: ScanResult, language: Language) {
@@ -139,10 +145,14 @@ export function usePaperwise() {
     write(`form map ${d.source} · ${d.map.fields.length} fields · ${language}${d.fallbackReason ? ` · fallback: ${d.fallbackReason}` : ''}`);
   }
 
+  /**
+   * The conversation language. The map stays as it is (it's in the form's language). During a
+   * conversation the agent is asked to switch (its language_detection tool changes voice + ASR).
+   */
   function changeLanguage(language: Language) {
+    if (language === engine.getState().userLanguage) return;
     engine.setLanguage(language);
-    const s = engine.getState().scan;
-    if (s) void buildMap(s, language);
+    voice.requestLanguage(language);
   }
 
   async function doToken() {
@@ -158,29 +168,63 @@ export function usePaperwise() {
 export type Paperwise = ReturnType<typeof usePaperwise>;
 
 /** The ElevenLabs voice session (one at a time), used by both panels. */
+export interface VoiceOptions {
+  /** LLM override (debug A/B). */
+  llm?: string;
+  /** Typing only: no microphone, text replies. */
+  textOnly?: boolean;
+  /** Speaking speed 0.7–1.2. */
+  speed?: number;
+}
+
+/** The ElevenLabs voice session (one at a time), used by both panels. */
 function useVoice(engine: FormEngine, write: (line: string) => void) {
   const session = useRef<VoiceSession | null>(null);
   const [active, setActive] = useState(false);
-  /** 'mic' = permission needed (the UI shows a localized hint); otherwise an error text. */
-  const [problem, setProblem] = useState<'mic' | string>('');
+  /** 'mic' = permission needed · 'lost' = reconnecting · 'lostFailed' = gave up · else an error text. */
+  const [problem, setProblem] = useState<'mic' | 'lost' | 'lostFailed' | string>('');
   const [turns, setTurns] = useState<TurnLatency[]>([]);
+  const [textOnly, setTextOnly] = useState(false);
+  const options = useRef<VoiceOptions>({});
+  /** The user pressed End (vs the connection dropping). */
+  const endedByUser = useRef(false);
+  const reconnects = useRef(0);
+  /** Typed while no session ran: sent once the agent has connected. */
+  const queued = useRef<string[]>([]);
 
   useEffect(() => () => void session.current?.end(), []);
-  // The session ends by itself too (disconnect): keep `active` in sync with the agent state.
+  // The session can end by itself (network, server): reconnect once and resume, else explain.
   const mode = useSyncExternalStore(engine.subscribe, () => engine.getState().agentMode);
   useEffect(() => {
-    if (mode === 'off' && active && !session.current?.active) setActive(false);
+    if (mode !== 'off' || !active || session.current?.active) {
+      if (mode === 'listening' && queued.current.length) {
+        for (const text of queued.current.splice(0)) session.current?.sendText(text);
+      }
+      if (mode === 'listening') reconnects.current = 0;
+      return;
+    }
+    setActive(false);
+    if (endedByUser.current) return;
+    if (reconnects.current < 2) {
+      reconnects.current++;
+      setProblem('lost');
+      write('voice: connection lost, reconnecting');
+      void start(options.current);
+    } else setProblem('lostFailed');
   }, [mode, active]);
 
-  async function start(llm?: string) {
-    setProblem('');
-    if ((await getMicPermission()) !== 'granted') {
+  async function start(opts: VoiceOptions = options.current) {
+    options.current = opts;
+    endedByUser.current = false;
+    setProblem((p) => (p === 'lost' ? p : ''));
+    setTextOnly(!!opts.textOnly);
+    if (!opts.textOnly && (await getMicPermission()) !== 'granted') {
       void browser.tabs.create({ url: browser.runtime.getURL('/mic-permission.html') });
       setProblem('mic');
       return;
     }
     const s = new VoiceSession(engine, {
-      startSession: (opts) => Conversation.startSession(opts as Parameters<typeof Conversation.startSession>[0]) as Promise<ConversationLike>,
+      startSession: (o) => Conversation.startSession(o as Parameters<typeof Conversation.startSession>[0]) as Promise<ConversationLike>,
       getToken: async () => {
         const res = await toBackground<AgentTokenResponse>({ type: 'API_AGENT_TOKEN' });
         if (!res.ok) return res;
@@ -191,30 +235,53 @@ function useVoice(engine: FormEngine, write: (line: string) => void) {
         audioConcatProcessor: browser.runtime.getURL('/elevenlabs/audioConcatProcessor.js'),
       },
       libsampleratePath: browser.runtime.getURL('/elevenlabs/libsamplerate.worklet.js'),
-      llm: llm || undefined,
+      llm: opts.llm || undefined,
+      speed: opts.speed,
+      textOnly: opts.textOnly,
     });
     s.onLatency = () => setTurns([...s.turns]);
     session.current = s;
     const res = await s.start();
     setActive(res.ok);
-    if (!res.ok) {
+    if (res.ok) setProblem('');
+    else {
       setProblem(res.error);
       write(`voice: could not start: ${res.error}`);
     }
   }
 
   async function end() {
+    endedByUser.current = true;
+    queued.current = [];
     await session.current?.end();
     setActive(false);
+    setProblem('');
   }
 
-  /** UiEvent user_text. */
+  /** Restart with new options (speed, voice ↔ typing), keeping every answer: the agent resumes. */
+  async function restart(opts: VoiceOptions) {
+    options.current = { ...options.current, ...opts };
+    if (!session.current?.active) return;
+    await end();
+    await start(options.current);
+  }
+
+  /** UiEvent user_text. With no conversation running, it starts one (typing only). */
   function sendText(text: string) {
-    const r = session.current?.sendText(text);
+    if (!session.current?.active) {
+      queued.current.push(text);
+      if (!active) void start({ ...options.current, textOnly: true });
+      return;
+    }
+    const r = session.current.sendText(text);
     if (r && !r.ok) write(`voice: typed message not sent: ${r.error}`);
+  }
+
+  function requestLanguage(language: Language) {
+    session.current?.requestLanguage(language);
   }
 
   const micLevel = useCallback(() => session.current?.inputLevel() ?? 0, []);
 
-  return { active, problem, turns, start, end, sendText, micLevel, stats: () => session.current?.stats() };
+  return { active, problem, textOnly, turns, start, end, restart, sendText, requestLanguage, micLevel, stats: () => session.current?.stats() };
 }

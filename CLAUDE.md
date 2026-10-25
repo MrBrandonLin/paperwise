@@ -24,6 +24,8 @@ Hackathon: UI/UX track + ElevenLabs track. Judged on usability, accessibility, v
 - The visual centerpiece: a spoken answer flowing onto the real field. Clear listening /
   thinking / speaking states.
 - The original pitch mentioned photo/PDF upload — that is NOT this version. We work on live web forms.
+  Exception, branch `pdf-support` only: fillable PDFs (AcroForm) open in our own viewer and are filled
+  the same way (see "PDFs" below). Scanned/photo PDFs are still out.
 
 ## Team split
 - Mahamane (this repo's owner): extension skeleton, content script (scan + fill), background
@@ -60,6 +62,9 @@ src/
   shared/agent-prompt.ts ★ voice agent system prompt + first message (form map baked in per session)
   shared/agent-tools.ts  the six client tools (single source: setup script + session)
   shared/config.ts       BACKEND_URL, confidence threshold, constants
+  shared/languages.ts    the 11 conversation languages: names, RTL, ElevenLabs codes, tr() fallback
+  shared/form-detect.ts  is this page a real form? (not a search box, not a login) → launcher
+  engine/language-guard.ts  free text must be in the form's language (names/addresses exempt)
   lib/messaging.ts       toBackground(), toContent() (auto-injects the content script if the tab has none),
                          getActiveTabId(), isScriptableUrl()
   lib/mic.ts             mic permission state + live volume meter
@@ -78,7 +83,14 @@ src/
     sidepanel/App.tsx    his panel (src/ui) by default · Shift+D = debug panel · ?mock=fr = mock session
     sidepanel/controller.ts  scan → map → engine → voice session, shared by both panels
     sidepanel/DebugPanel.tsx  debug UI: state table, tool simulator, raw page tools, latency, logs
+    sidepanel/prefs.ts   preferences in chrome.storage.local (onboarded, language, text size, speed,
+                         typing only) — never answers
     mic-permission/      one-time tab to grant the mic (side panels can't show the prompt)
+  pdf/                   (branch pdf-support) fillable PDFs: labels.ts (tooltip / nearby text → labels, ids),
+                         extract.ts (pdf.js widgets + text, pdf-lib tooltips), export.ts (pdf-lib: values into the
+                         original fields), panel.tsx (Open a PDF, drop, "Fill this PDF"), review.ts, urls.ts, copy.ts,
+                         viewer/ (render.ts: pages + form layers, fields.ts: ids/labels on pdf.js inputs, values)
+  entrypoints/pdf-viewer/  (branch pdf-support) the PDF viewer page: answers the panel like a content script
   ui/                    teammate's design (see src/ui/README.md): adapter.ts (FormState → his props),
                          copy.ts (en/fr), panel/, page/, components/ (shadcn), styles/ (Tailwind v4 + his theme)
 server/
@@ -111,6 +123,15 @@ server/
   message; the teammate's UI: in-page shadow root (his styles + font, amber review, Tailwind shadows, nothing
   added to the page, page font size can't shrink it), side panel notice, Shift+D, mock session.
 - `pnpm --dir server test:form-map` — form-map pipeline against a fake Gemini (no key needed).
+- `pnpm test:pdf` — (branch pdf-support, needs `pnpm build`) labels, pdf-lib export read back by pdf-lib, pdf.js
+  and Apple PDFKit (macOS), the viewer driven by the real engine, friendly errors, download after review,
+  "Open a PDF" / drop / "Fill this PDF". `pnpm pdf:labels [file.pdf]` prints internal name → label for PDFs.
+  `pnpm build:test-pdfs` rebuilds server/public/test/pdf/.
+- `pnpm test:a11y` — axe-core WCAG 2.2 A/AA on the real extension (panel light/dark/Arabic,
+  onboarding, help, in-page UI, PDF viewer), keyboard order, focus rings, 44 px targets.
+- `pnpm demo:check [--full]` — READY / NOT READY before a demo (keys, cached demo maps, agent token +
+  languages, build freshness, tests).
+- `pnpm --dir server voice:sim --form rental|rental-react|w9 --lang en|es|fr --scenario full|switch|unsupported`.
 - `pnpm --dir server test:paths` — server file paths on Windows-style URLs (.env, cache, scans, test pages) +
   fails if any script builds a path from `new URL(..., import.meta.url)`.
 - `pnpm test:state` — validators, engine safety rail, review rules, reducer + mock player.
@@ -132,6 +153,16 @@ server/
   `toContent()` injects it with `chrome.scripting` and retries once (needs host permission `<all_urls>`:
   content-script matches don't count). The new copy replaces the dead button; WXT invalidates older
   live copies. chrome://, Web Store, PDF viewer, error pages → "Paperwise can't work on this page."
+- **PDFs (branch pdf-support)**: a PDF opens in our extension page `pdf-viewer.html` (pdf.js, bundled in
+  public/pdfjs by postinstall, no CDN). All pages' form layers render up front (inputs = pdf.js annotation
+  layer), canvases lazily. The viewer runs the content-script modules (handler, scanner, filler, page UI,
+  watchers), so to the panel it is just a page (`tabs.sendMessage` reaches extension pages in tabs). It tags
+  pdf.js inputs with our ids (from the PDF field name), aria-labels (tooltip TU, else nearby page text) and
+  radio values; the scan is named by the PDF's fingerprint + own title (never the file name or URL). The
+  file is read in the browser only. Download (after the review): pdf-lib writes changed fields into the
+  original (real on-values, /Opt radios, export-value dropdowns, XFA dropped, NeedAppearances, not
+  flattened); encrypted-but-openable PDFs are saved by pdf.js. Opening a PDF reloads the panel on the viewer.
+  Scanner hooks (no-ops on web pages): preset ids scanned once, GROUP_QUESTION_ATTR, DOCUMENT_URL/TITLE_ATTR.
 - **Background worker**: message routing; opens the side panel; the only place that calls the backend.
 - **Side panel**: runs the ElevenLabs conversation, holds FORM STATE (single source of truth).
   Talks to the content script with `tabs.sendMessage`.
@@ -144,6 +175,11 @@ server/
    ask order, grouping (e.g. full name → first + last), conditional logic.
 2. **Conversation**: ElevenLabs agent gets form map + current state + user language, asks one
    question at a time, calls client tools.
+   **Two languages, kept apart**: the CONVERSATION language (what the user speaks/hears, captions,
+   panel words; 11 languages in `shared/languages.ts`, switchable mid-conversation) and the FORM
+   language (what goes into fields; the map is built ONCE in it — `formLanguageOf(scan)` — never per
+   user language). The agent translates questions when it speaks and answers when it fills; proper
+   nouns are never translated. `engine/language-guard.ts` refuses untranslated free text.
 3. **Speech → value**: done inside the agent's tool call (formatted + translated + confidence).
    No extra LLM call in the hot path; voice turns must stay under ~1.5 s.
 
@@ -161,12 +197,17 @@ carry only `filled: true/false`. The form map's risk can only raise this, never 
 
 ## ElevenLabs agent (phase 4)
 - Configured by `agent:setup` through the API (no clicking): client tools (wait for response),
-  LLM `ELEVENLABS_LLM` (default claude-haiku-4-5, thinking 0, temp 0.2), TTS eleven_flash_v2
-  (required for an English-primary agent; French gets the multilingual flash), turn eagerness normal + speculative_turn, en + fr, client events
-  (tentative transcripts, chat response parts, tool calls), overrides allowed (prompt, llm,
-  first message, language, ASR keywords), auth on. Voice: ELEVENLABS_VOICE_ID.
-- Per session (code): prompt = rules + this form's map, first message = welcome + first question,
-  language, ASR keywords, optional LLM override (A/B). Connection: WebRTC, token from
+  LLM `ELEVENLABS_LLM` (default claude-haiku-4-5, thinking 0, temp 0.2), TTS `eleven_v4_turbo`
+  (ELEVENLABS_TTS_MODEL; 90+ languages from one voice, expressive_mode off), turn eagerness normal +
+  speculative_turn, built-in `language_detection` tool (switches voice + ASR mid-conversation),
+  `language_presets` for every language in shared/languages.ts (Tagalog = `fil`), client events
+  (tentative transcripts, chat response parts, tool calls, agent_tool_response[_full_payload] → the
+  panel follows a language switch), overrides allowed (prompt, llm, first message, language, ASR
+  keywords, tts.speed, conversation.text_only), auth on. Voice: ELEVENLABS_VOICE_ID.
+- Haitian Creole: no ElevenLabs ASR/TTS (docs 2026-10-24) → the agent says so and offers French.
+- Per session (code): prompt = rules + languages + this form's map, first message = welcome + what
+  to know + "shall we start?" (11 languages, agent-prompt.ts; "let's continue" on a reconnect),
+  language, ASR keywords, speaking speed, text-only (typing, no mic), optional LLM override (A/B). Connection: WebRTC, token from
   `GET /agent-token` (server calls /v1/convai/conversation/token).
 - Extension CSP blocks the SDK's blob:/data: worklets → served from public/elevenlabs/ (copied on
   postinstall) via `workletPaths` + `libsampleratePath`.
@@ -179,8 +220,10 @@ carry only `filled: true/false`. The form map's risk can only raise this, never 
 - LLM comparison (voice:sim, French, 2026-10-24, one run each): claude-haiku-4-5 17/17, median
   0.76 s, p90 1.2 s · gemini-3.1-flash-lite 17/17, 1.5 s / 2.1 s · gemini-3.5-flash-lite 15/17
   (SSN by voice, 10 s silences) · gpt-4.1-nano 16/17 (SSN by voice), 2.1 s · gpt-4.1-mini failed.
-- English-primary agents must use TTS `eleven_flash_v2` (API rejects v2_5); French uses the
-  multilingual flash automatically.
+- Was: English-primary agents had to use `eleven_flash_v2`. Now `eleven_v4_turbo` is accepted
+  (verified 2026-10-24) and speaks every language.
+- Latency (voice:sim, 2026-10-24, v4 Turbo, haiku): rental es median 0.81–0.85 s, fr 0.86–0.90 s,
+  en 1.0–1.2 s; W-9 es 0.82 s, en 1.8 s. Most of a slow turn is ElevenLabs' end-of-speech detection.
 - Optional fields are skipped with fill_field(value "") → status skipped (else "Next" never moves).
 
 ## Accuracy rule (both prompts)
@@ -201,9 +244,10 @@ confidence ≥ threshold) before touching the page. Failed validation → field 
 (`sendContextualUpdate`). User edits on the page sync back into state and are sent to the agent.
 
 ## Scope
-IN: Chrome, single-page standard HTML forms; text / number / date / select / checkbox / radio;
-English + French; explain, translate, fill, risk flags, review step.
-OUT: auto-submit (never), multi-page forms, file uploads, CAPTCHAs, signatures, PDFs, accounts,
+IN: Chrome, single-page standard HTML forms and fillable PDFs; text / number / date / select /
+checkbox / radio; 11 conversation languages (panel words en/es/fr/ar); explain, translate, fill,
+risk flags, review step, typing-only mode.
+OUT: auto-submit (never), multi-page forms, file uploads, CAPTCHAs, signatures, scanned PDFs, accounts,
 storing user data (nothing is persisted — no chrome.storage of answers, no server logs of values).
 
 ## Shared contract
@@ -213,6 +257,9 @@ Types live in `src/shared/contract.ts`. This file is the contract with the teamm
 
 Contract changes so far (announced): `request_typing`, `review_started`, `review_section` events;
 `UiEvent { type: 'user_text'; text }` (2026-10-24: typed answers/questions, same rules as speech).
+Finishing pass (2026-10-24): `Language` widened to 11 codes; `LocalizedText` = English + optional
+others; `FormMap.language` = the map's language (now the FORM's); tool `come_back_later`;
+`FieldState.later`; AgentEvent `field_later`; `FieldGroup.pick: 'one'` (pick-one checkbox sets).
 
 ## Phase plan
 - [x] **0. Skeleton** — extension builds, floating button opens side panel, SCAN round-trip,
@@ -235,7 +282,9 @@ Contract changes so far (announced): `request_typing`, `review_started`, `review
 - [ ] **5. Review + risk** — start_review flow, legal/sensitive handling, request_typing.
 - [ ] **6. Integrate teammate UI + demo hardening** — DONE: his glass panel + in-page UI wired to the
       engine (adapter), typed answers (UiEvent user_text), debug behind Shift+D, fonts bundled.
-      TODO: rehearse on stage forms, dark mode (he has none yet), speaking-speed control.
+      Finishing pass (2026-10-24): 11 languages, onboarding, help + shortcuts, typing-only, speaking
+      speed, text size, dark mode, RTL, done screen, designed problems, launcher placement,
+      real-site fixes, test:a11y, demo:check. See AUDIT.md and FINAL_REPORT.md.
 
 ## Doc notes (verified 2026-10-23 — re-check before relying on them)
 - WXT 0.21: entrypoints in `src/entrypoints`; `defineBackground`, `defineContentScript` are auto-imported;

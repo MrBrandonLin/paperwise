@@ -1,4 +1,4 @@
-import { ACTIVE_ATTR, STATUS_ATTR } from '@/shared/config';
+import { ACTIVE_ATTR, RECHECK_EVENT, STATUS_ATTR } from '@/shared/config';
 import type { FieldStatus } from '@/shared/contract';
 import type { Result } from '@/shared/messages';
 import { pageUi } from './page-ui-store';
@@ -60,6 +60,9 @@ export function fillField(id: string, value: string): Result<FillOutcome> {
   }
   // The fill animation: the value flows onto the field. Sensitive values never: a check only.
   if (result.ok && result.data.filled) pageUi.flashFill(id, isSensitive(first) ? '' : shownValue(els, result.data.value));
+  // Some widgets (React date pickers, custom selects) accept a value, then put their own back a
+  // moment later. Look again: if it changed, say so like a user edit (the agent then re-asks).
+  if (result.ok) verifyLater(id, els, readValue(els));
 
   // Sensitive: report only filled / not filled, and don't echo the value in errors.
   if (isSensitive(first)) {
@@ -171,7 +174,34 @@ function fillRadio(radios: HTMLInputElement[], raw: string): Result<FillOutcome>
     dispatch(radio, 'input', 'change');
   }
   if (!radio.checked) return fail(`The page did not let us choose "${match.label}".`);
-  return ok({ value: radio.value, filled: true });
+  return ok({ value: radioValue(radio), filled: true });
+}
+
+function readValue(els: FieldEl[]): string {
+  const first = els[0]!;
+  if (first instanceof HTMLInputElement && first.type === 'radio') return radioValue((els as HTMLInputElement[]).find((r) => r.checked));
+  if (first instanceof HTMLInputElement && first.type === 'checkbox') return String(first.checked);
+  return first.value;
+}
+
+/** A radio's value; without a value attribute ("on"), its label, like the scanner reports it. */
+function radioValue(r: HTMLInputElement | undefined): string {
+  if (!r) return '';
+  return r.getAttribute('value') === null ? radioLabel(r) : r.value;
+}
+
+const pendingChecks = new Map<string, ReturnType<typeof setTimeout>>();
+
+function verifyLater(id: string, els: FieldEl[], written: string) {
+  // Only the latest fill of a field is checked (two quick fills aren't a revert).
+  clearTimeout(pendingChecks.get(id));
+  pendingChecks.set(id, setTimeout(() => {
+    pendingChecks.delete(id);
+    if (!els[0]?.isConnected || readValue(els) === written) return;
+    markDirty();
+    // The watchers report the page's real value, like a user edit (the agent then re-asks).
+    document.dispatchEvent(new CustomEvent(RECHECK_EVENT, { detail: id }));
+  }, 400));
 }
 
 export interface FieldReading extends FillOutcome {
@@ -186,7 +216,7 @@ export function readField(id: string): FieldReading | null {
   let value: string;
   let filled: boolean;
   if (first instanceof HTMLInputElement && first.type === 'radio') {
-    value = (els as HTMLInputElement[]).find((r) => r.checked)?.value ?? '';
+    value = radioValue((els as HTMLInputElement[]).find((r) => r.checked));
     filled = value !== '';
   } else if (first instanceof HTMLInputElement && first.type === 'checkbox') {
     value = String(first.checked);

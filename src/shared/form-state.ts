@@ -90,7 +90,10 @@ export function reduceFormState(state: FormState, action: FormStateAction): Form
         confidence: action.confidence,
         source: action.source,
         reviewReason: undefined,
+        later: undefined,
       });
+    case 'field_later':
+      return setField(state, action.id, { later: true, ...(state.fields[action.id]?.status === 'review' ? { status: 'empty' as const, reviewReason: undefined } : {}) });
     case 'flag_for_review':
       return setField(state, action.id, {
         status: 'review',
@@ -103,7 +106,7 @@ export function reduceFormState(state: FormState, action: FormStateAction): Form
     case 'highlight_field': {
       const cur = state.fields[action.id];
       if (cur?.status === action.status) return state;
-      return setField(state, action.id, { status: action.status, ...(action.status === 'filled' ? { reviewReason: undefined } : {}) });
+      return setField(state, action.id, { status: action.status, ...(action.status === 'filled' ? { reviewReason: undefined, later: undefined } : {}) });
     }
     case 'explain_field':
       return { ...state, explanation: { fieldId: action.id, text: action.explanation } };
@@ -178,7 +181,13 @@ export function askOrder(state: FormState): FormMapField[] {
 /** Next field the conversation should go to: review items first, then the first empty one. */
 export function nextField(state: FormState): FormMapField | undefined {
   const order = askOrder(state);
-  return order.find((f) => state.fields[f.id]?.status === 'review') ?? order.find((f) => !isDone(state, f.id) && state.fields[f.id]?.status !== 'needs_typing');
+  const open = (f: FormMapField) => !isDone(state, f.id) && state.fields[f.id]?.status !== 'needs_typing';
+  // Review items first, then the rest in order; "come back later" ones once everything else is done.
+  return (
+    order.find((f) => state.fields[f.id]?.status === 'review') ??
+    order.find((f) => open(f) && !state.fields[f.id]?.later) ??
+    order.find((f) => open(f))
+  );
 }
 
 /** Required + applicable fields that are not filled yet. */

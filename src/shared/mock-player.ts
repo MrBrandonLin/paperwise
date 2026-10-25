@@ -13,6 +13,7 @@
  * The form map mirrors server/public/test/rental.html, with the ids the real scanner
  * gives it ("pw-" + the element's id, or its name for radio groups).
  */
+import { tr } from './languages';
 import type {
   AgentEvent,
   AgentMode,
@@ -175,7 +176,7 @@ const SOURCE: MockSource = {
 // ---------------------------------------------------------------------------
 
 /** Text in both languages. */
-type T = Record<Language, string>;
+type T = LocalizedText;
 
 interface Step {
   /** Wait this long (ms, at speed 1) after the previous step. */
@@ -202,8 +203,8 @@ function buildScript(): Step[] {
   const agentSays = (t: T) => {
     wait(150);
     mode('speaking');
-    transcript('agent', (l) => t[l], true);
-    wait(Math.min(9000, 900 + Math.max(t.en.length, t.fr.length) * 45));
+    transcript('agent', (l) => tr(t, l), true);
+    wait(Math.min(9000, 900 + Math.max(t.en.length, t.fr?.length ?? 0) * 45));
     mode('listening');
     wait(900);
   };
@@ -211,10 +212,10 @@ function buildScript(): Step[] {
   /** User speaks: partial captions, then final, then the agent thinks. */
   const userSays = (t: T) => {
     for (const fraction of [0.35, 0.7]) {
-      transcript('user', (l) => cut(t[l], fraction), false);
+      transcript('user', (l) => cut(tr(t, l), fraction), false);
       wait(450);
     }
-    transcript('user', (l) => t[l], true);
+    transcript('user', (l) => tr(t, l), true);
     wait(250);
     mode('thinking');
     wait(700);
@@ -230,7 +231,7 @@ function buildScript(): Step[] {
       type: 'fill_field',
       id,
       value,
-      displayValue: typeof display === 'string' ? display : display[l],
+      displayValue: typeof display === 'string' ? display : tr(display, l),
       confidence,
       source: 'agent',
     }));
@@ -238,7 +239,7 @@ function buildScript(): Step[] {
     wait(250);
   };
   const flag = (id: string, reason: T, value?: string, display?: T) => {
-    emit((l) => ({ type: 'flag_for_review', id, reason: reason[l], value, displayValue: display?.[l] }));
+    emit((l) => ({ type: 'flag_for_review', id, reason: tr(reason, l), value, displayValue: (display ? tr(display, l) : undefined) }));
     highlight(id, 'review');
   };
 
@@ -320,7 +321,7 @@ function buildScript(): Step[] {
   wait(1600);
   mode('listening');
   userSays({ en: 'Wait, what does "gross" mean?', fr: 'Attendez, ça veut dire quoi « brut » ?' });
-  emit((l) => ({ type: 'explain_field', id: 'pw-income', explanation: explanationOf('pw-income')[l] }));
+  emit((l) => ({ type: 'explain_field', id: 'pw-income', explanation: tr(explanationOf('pw-income'), l) }));
   agentSays({
     en: 'Good question. "Gross" means before taxes and anything else is taken out. For example, if your pension is 2,000 dollars before deductions, you say 2,000. So, how much do you get each month before taxes?',
     fr: 'Bonne question. « Brut » veut dire avant les impôts et les autres retenues. Par exemple, si votre retraite est de 2 000 dollars avant retenues, vous dites 2 000. Alors, combien recevez-vous par mois avant impôts ?',
@@ -397,7 +398,7 @@ function buildScript(): Step[] {
     emit((l) => ({
       type: 'review_section',
       sectionId: section.id,
-      sectionTitle: section.title[l],
+      sectionTitle: tr(section.title, l),
       position: i + 1,
       total: sections.length,
     }));
@@ -424,16 +425,16 @@ export function mockFormMap(lang: Language, readySections = SOURCE.sections.leng
   const complete = readySections >= SOURCE.sections.length;
   return {
     language: lang,
-    title: complete ? SOURCE.title[lang] : 'Rental Application – Maple Street Apartments',
-    summary: complete ? SOURCE.summary[lang] : '',
+    title: complete ? tr(SOURCE.title, lang) : 'Rental Application – Maple Street Apartments',
+    summary: complete ? tr(SOURCE.summary, lang) : '',
     estimatedMinutes: SOURCE.estimatedMinutes,
     formLanguage: SOURCE.formLanguage,
-    sections: SOURCE.sections.map((s, i) => ({ id: s.id, title: s.title[lang], fieldIds: s.fieldIds, ready: i < readySections })),
-    groups: SOURCE.groups.map((g) => ({ id: g.id, plainQuestion: g.plainQuestion[lang], fieldIds: g.fieldIds })),
+    sections: SOURCE.sections.map((s, i) => ({ id: s.id, title: tr(s.title, lang), fieldIds: s.fieldIds, ready: i < readySections })),
+    groups: SOURCE.groups.map((g) => ({ id: g.id, plainQuestion: tr(g.plainQuestion, lang), fieldIds: g.fieldIds })),
     fields: SOURCE.fields.map(({ explanation: _explanation, ...f }) => ({
       ...f,
-      plainQuestion: ready.has(f.id) ? f.plainQuestion[lang] : f.plainQuestion.en,
-      riskReason: f.riskReason?.[lang],
+      plainQuestion: ready.has(f.id) ? tr(f.plainQuestion, lang) : f.plainQuestion.en,
+      riskReason: (f.riskReason ? tr(f.riskReason, lang) : undefined),
     })),
     complete,
   };
@@ -499,7 +500,7 @@ export function createMockPlayer(options: MockPlayerOptions = {}): MockPlayer {
     emit({
       type: 'section_progress',
       sectionId: section.id,
-      sectionTitle: section.title[language],
+      sectionTitle: tr(section.title, language),
       done,
       total: section.fieldIds.length,
       formDone: SOURCE.fields.filter((f) => isDone(f.id)).length,

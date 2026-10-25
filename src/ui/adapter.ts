@@ -26,7 +26,8 @@
  */
 import type { AgentMode, FieldStatus, FormState, Language, RiskLevel } from '@/shared/contract';
 import { askOrder, isApplicable, mapField, nextField, progress, scannedField } from '@/shared/form-state';
-import { COPY, type Copy } from './copy';
+import { languageInfo } from '@/shared/languages';
+import { copyFor, type Copy } from './copy';
 
 export type PanelScreen = 'loading' | 'notice' | 'ready' | 'talking' | 'review' | 'finished';
 
@@ -44,14 +45,25 @@ export interface ReviewItem {
   id: string;
   question: string;
   answer: string;
+  /** What goes into the form (the form's language), when it differs from what the user said. */
+  written?: string;
   status: FieldStatus;
   risk: RiskLevel;
   riskReason?: string;
 }
 
+/** One line of the conversation (both sides), for the transcript. */
+export interface Line {
+  role: 'agent' | 'user';
+  text: string;
+  final: boolean;
+}
+
 export interface PanelView {
   copy: Copy;
   language: Language;
+  /** Writing direction of the conversation language (Arabic: rtl). */
+  dir: 'ltr' | 'rtl';
   screen: PanelScreen;
   activity: AgentMode;
   bubble: { label: string; text: string; live: boolean };
@@ -59,10 +71,17 @@ export interface PanelView {
   /** The map is still streaming in (sections not ready yet). */
   preparing: boolean;
   attention: Attention | null;
-  explanation: { question: string; text: string } | null;
+  /** title = the field as written on the page; text = what the agent said (or the page's help). */
+  explanation: { title: string; question: string; text: string } | null;
   review: { position: number; total: number; title: string; items: ReviewItem[] } | null;
   /** Recent user lines (spoken or typed); the last one may still be partial. */
   userLines: { text: string; final: boolean }[];
+  /** The conversation, both sides, most recent last. */
+  transcript: Line[];
+  /** Every applicable field's status + label (screen-reader announcements). */
+  statuses: { id: string; label: string; status: FieldStatus }[];
+  /** Every question answered (or the user said they're done): the completion screen. */
+  done: boolean;
   /** The conversation is running (mic on, typing allowed). */
   inConversation: boolean;
   canStart: boolean;
@@ -79,7 +98,7 @@ export interface PanelExtras {
 
 export function toPanelView(state: FormState, extras: PanelExtras = {}): PanelView {
   const language = state.userLanguage;
-  const copy = COPY[language];
+  const copy = copyFor(language);
   const map = state.map;
   const activity = state.agentMode;
   const inConversation = activity !== 'off';
@@ -91,16 +110,21 @@ export function toPanelView(state: FormState, extras: PanelExtras = {}): PanelVi
     .filter((c) => c.role === 'user')
     .slice(-4)
     .map((c) => ({ text: c.text, final: c.final }));
+  const transcript = state.captions.slice(-12).map((c) => ({ role: c.role, text: c.text, final: c.final }));
   const lastAgent = [...state.captions].reverse().find((c) => c.role === 'agent');
   const allDone = !!map && prog.total > 0 && !next;
 
   const base = {
     copy,
     language,
+    dir: languageInfo(language).dir,
     activity,
     progress: { done: prog.done, total: prog.total },
     preparing: !!map && !map.complete,
     userLines,
+    transcript,
+    statuses: map ? order.filter((f) => isApplicable(state, f.id)).map((f) => ({ id: f.id, label: scannedField(state, f.id)?.label || f.plainQuestion, status: state.fields[f.id]?.status ?? 'empty' })) : [],
+    done: false,
     inConversation,
   };
 
@@ -151,6 +175,7 @@ export function toPanelView(state: FormState, extras: PanelExtras = {}): PanelVi
     explanation: explanationView(state),
     review,
     canStart: !inConversation,
+    done: state.phase === 'done' || (allDone && !inConversation && state.review !== null),
     notice: null,
   };
 }
@@ -186,7 +211,7 @@ function explanationView(state: FormState): PanelView['explanation'] {
   if (!e) return null;
   const m = mapField(state, e.fieldId);
   const group = m?.groupId ? state.map?.groups.find((g) => g.id === m.groupId) : undefined;
-  return { question: group?.plainQuestion ?? m?.plainQuestion ?? '', text: e.text };
+  return { title: scannedField(state, e.fieldId)?.label ?? '', question: group?.plainQuestion ?? m?.plainQuestion ?? '', text: e.text };
 }
 
 function reviewItem(state: FormState, id: string, copy: Copy): ReviewItem {
@@ -197,12 +222,22 @@ function reviewItem(state: FormState, id: string, copy: Copy): ReviewItem {
   if (isSensitive(state, id)) answer = scannedField(state, id)?.filled || status === 'filled' ? copy.typedOnPage : copy.notAnswered;
   else if (status === 'skipped') answer = copy.skipped;
   else answer = f?.displayValue || f?.value || copy.notAnswered;
+  // "What you said → what goes in the form": shown when the form's words differ (translated, formatted).
+  const written = !isSensitive(state, id) && status === 'filled' && f?.value && f.value !== f.displayValue ? shownValue(state, id, f.value, copy) : undefined;
   return {
     id,
-    question: m?.plainQuestion ?? scannedField(state, id)?.label ?? id,
+    question: scannedField(state, id)?.label || m?.plainQuestion || id,
     answer,
+    ...(written && written !== answer ? { written } : {}),
     status,
     risk: m?.risk ?? 'none',
     ...(m?.riskReason ? { riskReason: m.riskReason } : {}),
   };
+}
+
+/** A written value as the page shows it: a choice's label, a checkbox as checked / not checked. */
+function shownValue(state: FormState, id: string, value: string, copy: Copy): string {
+  const scanned = scannedField(state, id);
+  if (scanned?.kind === 'checkbox') return value === 'true' ? copy.checked : copy.notChecked;
+  return scanned?.options?.find((o) => o.value === value)?.label || value;
 }

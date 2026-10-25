@@ -28,4 +28,6 @@ export const env = {
   elevenlabsVoiceId: process.env.ELEVENLABS_VOICE_ID || '',
   // Fastest that passed the full French voice test (voice:sim, 2026-10-24): median 0.76 s, p90 1.2 s.
   elevenlabsLlm: process.env.ELEVENLABS_LLM || 'claude-haiku-4-5',
+  /** Used by agent:setup. Eleven v4 Turbo speaks all our languages from one voice. */
+  elevenlabsTtsModel: process.env.ELEVENLABS_TTS_MODEL || 'eleven_v4_turbo',
 };

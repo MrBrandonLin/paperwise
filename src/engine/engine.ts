@@ -9,6 +9,8 @@
  * No browser.* calls: the page is reached through a PageTransport, so this runs in tests too.
  * Nothing is persisted: state lives in memory for the session only.
  */
+import { foreignLanguageOf, isFreeText } from './language-guard';
+import { tr } from '../shared/languages';
 import { CONFIDENCE_THRESHOLD } from '../shared/config';
 import type {
   AgentEvent,
@@ -48,11 +50,11 @@ export interface PageTransport {
 export const LEGAL_CONFIDENCE = 0.9;
 
 const T = {
-  unsure: { en: 'I’m not sure I heard this right.', fr: 'Je ne suis pas sûr d’avoir bien compris.' },
-  legal: { en: 'This one needs your clear yes.', fr: 'Il me faut votre accord clair pour celui-ci.' },
-  pageRefused: { en: 'The page did not accept this answer.', fr: 'La page n’a pas accepté cette réponse.' },
-  typeIt: { en: 'Please type it yourself in the highlighted box.', fr: 'Merci de le taper vous-même dans la case en surbrillance.' },
-  typedByYou: { en: 'typed by you (hidden)', fr: 'tapé par vous (masqué)' },
+  unsure: { en: 'I’m not sure I heard this right.', es: 'No estoy seguro de haberlo entendido bien.', fr: 'Je ne suis pas sûr d’avoir bien compris.', ar: 'لست متأكدًا أنني سمعت هذا جيدًا.' },
+  legal: { en: 'This one needs your clear yes.', es: 'Para esto necesito un sí claro de su parte.', fr: 'Il me faut votre accord clair pour celui-ci.', ar: 'هذا يحتاج إلى موافقتك الواضحة.' },
+  pageRefused: { en: 'The page did not accept this answer.', es: 'La página no aceptó esta respuesta.', fr: 'La page n’a pas accepté cette réponse.', ar: 'لم تقبل الصفحة هذه الإجابة.' },
+  typeIt: { en: 'Please type it yourself in the highlighted box.', es: 'Escríbalo usted mismo en la casilla resaltada, por favor.', fr: 'Merci de le taper vous-même dans la case en surbrillance.', ar: 'من فضلك اكتبه بنفسك في المربع المميز.' },
+  typedByYou: { en: 'typed by you (hidden)', es: 'escrito por usted (oculto)', fr: 'tapé par vous (masqué)', ar: 'كتبته بنفسك (مخفي)' },
 };
 
 export class FormEngine {
@@ -150,6 +152,8 @@ export class FormEngine {
         return this.requestTyping({ id });
       case 'start_review':
         return this.startReview();
+      case 'come_back_later':
+        return this.comeBackLater({ id });
       default:
         return { ok: false, message: `Unknown tool "${name}".` };
     }
@@ -181,16 +185,26 @@ export class FormEngine {
       return { ok: true, message: `Skipped. ${this.nextInstruction()}`, data: { next: this.nextSummary() } };
     }
 
+    // Free text goes in the form's language: the agent sometimes writes the user's own words.
+    const formLanguage = this.state.map?.formLanguage ?? 'en';
+    const foreign = isFreeText(scanned, mapped) ? foreignLanguageOf(v.value, formLanguage) : null;
+    if (foreign) {
+      return {
+        ok: false,
+        message: `"${v.value}" is not in the form's language (${formLanguage}). Translate the user's words into it, keeping any names exactly as said, and call fill_field again. Don't ask the user again.`,
+      };
+    }
+
     const confidence = Math.max(0, Math.min(1, Number.isFinite(args.confidence) ? args.confidence : 0));
     if (confidence < CONFIDENCE_THRESHOLD) {
-      await this.toReview(id, T.unsure[this.lang], v.value, args.display_value);
+      await this.toReview(id, tr(T.unsure, this.lang), v.value, args.display_value);
       return {
         ok: false,
         message: `Not sure enough (confidence ${confidence}). Read back "${args.display_value}" to the user and ask them to confirm, then call fill_field again with confidence ≥ ${CONFIDENCE_THRESHOLD}.`,
       };
     }
     if (mapped?.risk === 'legal' && v.value === 'true' && confidence < LEGAL_CONFIDENCE) {
-      await this.toReview(id, T.legal[this.lang], v.value, args.display_value);
+      await this.toReview(id, tr(T.legal, this.lang), v.value, args.display_value);
       return {
         ok: false,
         message: `Legal field. First read this to the user: "${mapped.riskReason ?? ''}". Only after a clear yes, call fill_field again with confidence ≥ ${LEGAL_CONFIDENCE}.`,
@@ -199,7 +213,7 @@ export class FormEngine {
 
     const res = await this.page.send<{ value: string; filled: boolean }>({ type: 'FILL', id, value: v.value });
     if (!res.ok) {
-      await this.toReview(id, T.pageRefused[this.lang], v.value, args.display_value);
+      await this.toReview(id, tr(T.pageRefused, this.lang), v.value, args.display_value);
       return { ok: false, message: `The page refused it: ${res.error} Ask again.` };
     }
 
@@ -212,15 +226,40 @@ export class FormEngine {
       source: 'agent',
     });
     await this.highlight(id, 'filled');
+    // A pick-one set of checkboxes: this one is the choice, the others don't apply.
+    const set = this.state.map?.groups.find((g) => g.pick === 'one' && g.fieldIds.includes(id));
+    if (set && res.data.value === 'true') {
+      for (const other of set.fieldIds.filter((x) => x !== id)) {
+        if (scannedField(this.state, other)?.currentValue === 'true' || this.state.fields[other]?.value === 'true') {
+          await this.page.send({ type: 'FILL', id: other, value: 'false' });
+        }
+        this.apply({ type: 'highlight_field', id: other, status: 'skipped' });
+      }
+    }
     // The answer may reveal or hide other fields (conditions): look at the page again now.
     await this.refreshScan();
     return { ok: true, message: `Filled. ${this.nextInstruction()}`, data: { next: this.nextSummary() } };
   }
 
+  /** "I don't know yet": asked again once the other questions are done, before the review. */
+  async comeBackLater(args: FieldIdArgs): Promise<ToolResult> {
+    const known = this.checkKnown(args.id);
+    if (known) return known;
+    if (this.state.fields[args.id]?.status === 'filled') return { ok: true, message: `Already answered. ${this.nextInstruction()}` };
+    this.apply({ type: 'field_later', id: args.id });
+    return { ok: true, message: `OK, marked to come back to before the review. ${this.nextInstruction()}`, data: { next: this.nextSummary() } };
+  }
+
+  /** Show an explanation on the panel (the agent's spoken words, or the page's help text). */
+  showExplanation(id: string, text: string) {
+    if (!this.state.fields[id] || !text.trim()) return;
+    this.apply({ type: 'explain_field', id, explanation: text.trim() });
+  }
+
   async flagForReview(args: FlagForReviewArgs): Promise<ToolResult> {
     const known = this.checkKnown(args.id);
     if (known) return known;
-    await this.toReview(args.id, args.reason || T.unsure[this.lang]);
+    await this.toReview(args.id, args.reason || tr(T.unsure, this.lang));
     return { ok: true, message: 'Marked for review. Ask the confirming question now.' };
   }
 
@@ -261,7 +300,7 @@ export class FormEngine {
     if (this.state.fields[args.id]?.status === 'filled') return { ok: true, message: 'Already filled on the page. Move on.' };
     await this.page.send({ type: 'GO_TO', id: args.id, focus: true });
     this.apply({ type: 'go_to_field', id: args.id });
-    this.apply({ type: 'request_typing', id: args.id, reason: T.typeIt[this.lang] });
+    this.apply({ type: 'request_typing', id: args.id, reason: tr(T.typeIt, this.lang) });
     await this.highlight(args.id, 'needs_typing');
     return {
       ok: true,
@@ -295,7 +334,7 @@ export class FormEngine {
             return {
               id,
               question: f.plainQuestion,
-              answer: sensitive ? T.typedByYou[this.lang] : st.displayValue || st.value,
+              answer: sensitive ? tr(T.typedByYou, this.lang) : st.displayValue || st.value,
               risk: f.risk,
               riskReason: f.riskReason,
               confirm: f.risk === 'legal' || f.risk === 'important',
@@ -356,12 +395,14 @@ export class FormEngine {
     const next = nextField(s);
     const review = askOrder(s).filter((f) => s.fields[f.id]?.status === 'review');
     const typing = askOrder(s).filter((f) => s.fields[f.id]?.status === 'needs_typing');
+    const later = askOrder(s).filter((f) => s.fields[f.id]?.later && s.fields[f.id]?.status !== 'filled');
     const lines = [
       `User language: ${s.userLanguage}. Form: ${s.map.title}. Progress: ${p.done}/${p.total} answered.`,
       s.activeFieldId ? `Current field: ${s.activeFieldId}.` : '',
       next ? `Next: ${next.id} — "${next.plainQuestion}"${next.risk !== 'none' ? ` (${next.risk}: ${next.riskReason ?? ''})` : ''}.` : 'Every question is answered: call start_review.',
       review.length ? `Needs confirming: ${review.map((f) => `${f.id} (${s.fields[f.id]?.reviewReason ?? ''})`).join('; ')}.` : '',
       typing.length ? `Waiting for the user to type: ${typing.map((f) => f.id).join(', ')}.` : '',
+      later.length ? `Come back to before the review: ${later.map((f) => f.id).join(', ')}.` : '',
     ];
     return lines.filter(Boolean).join('\n');
   }

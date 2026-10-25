@@ -11,7 +11,7 @@ import type {
 import type { FormMapDone, FormMapPartTiming, FormMapUpdate } from '../../src/shared/messages.ts';
 import { env } from './env.ts';
 import { FormMapCache } from './form-map-cache.ts';
-import { structureSignature, toStructure, type FieldStructure, type FormStructure } from './form-structure.ts';
+import { structureSignature, toStructure, versionedPage, type FieldStructure, type FormStructure } from './form-structure.ts';
 import { geminiConfigured, limiter, requestStructuredHedged, type GeminiResult } from './gemini.ts';
 import { buildPartPrompt, PART_SYSTEM_PROMPT, partSchema, type PartSection } from './prompts/form-map.ts';
 import type { Priority } from './rate-limit.ts';
@@ -64,7 +64,7 @@ export async function streamFormMap(
   const started = Date.now();
   const structure = toStructure(scan);
   const key = `${structureSignature(structure)}|${language}`;
-  const pageKey = `${structure.page}|${language}`;
+  const pageKey = `${versionedPage(structure.page)}|${language}`;
   const count = structure.fields.length;
 
   const cacheHit = (map: FormMap, why: string): FormMapDone => {
@@ -319,7 +319,7 @@ class Build {
       updates.set(item.id, {
         ...(q ? { plainQuestion: q } : {}),
         risk,
-        riskReason: risk === 'none' ? undefined : (typeof item.w === 'string' && item.w.trim()) || FALLBACK_RISK_REASON[risk][this.language],
+        riskReason: risk === 'none' ? undefined : (typeof item.w === 'string' && item.w.trim()) || pick(FALLBACK_RISK_REASON[risk], this.language),
         showIf: asCondition(item.s, item.id, allById, repairs),
       });
     }
@@ -334,7 +334,13 @@ class Build {
     }
     const groups: FieldGroup[] = [...byQuestion]
       .filter(([, ids]) => ids.length >= 2)
-      .map(([q, ids]) => ({ id: `g-${ids[0]}`, plainQuestion: q, fieldIds: ids }));
+      .map(([q, ids]) => ({ id: `g-${ids[0]}`, plainQuestion: q, fieldIds: ids, ...(isPickOne(ids, allById) ? { pick: 'one' as const } : {}) }));
+    // Pick-one checkbox sets Gemini didn't group: one question listing the choices, built locally.
+    for (const ids of pickOneSets(part.fieldIds, allById)) {
+      if (ids.some((id) => grouped.has(id) || groups.some((g) => g.fieldIds.includes(id)))) continue;
+      const labels = ids.map((id) => allById.get(id)!.label);
+      groups.push({ id: `g-${ids[0]}`, plainQuestion: pick(TEXT.pickOne, this.language)(labels), fieldIds: ids, pick: 'one' });
+    }
     const groupOf = new Map(groups.flatMap((g) => g.fieldIds.map((id) => [id, g.id] as const)));
 
     const titles = new Map<string, string>();
@@ -351,7 +357,16 @@ class Build {
         const groupId = groupOf.get(f.id);
         return u || groupId ? { ...f, ...u, ...(groupId ? { groupId } : {}) } : f;
       }),
-      groups: [...this.map.groups, ...groups],
+      // A local pick-one question ("Which one applies: …") gives way to Gemini's wording.
+      groups: [
+        ...this.map.groups.map((g) => {
+          // Gemini's group question, else the question it wrote on the set's first box (it asks
+          // "Which one describes you: …?" there when it sees the set).
+          const better = g.pick === 'one' ? groupQuestion.get(g.fieldIds[0]!) ?? sharedQuestion(g.fieldIds, updates) : undefined;
+          return better ? { ...g, plainQuestion: better } : g;
+        }),
+        ...groups,
+      ],
       sections: this.map.sections.map((s) =>
         readyIds.has(s.id) ? { ...s, ready: true, ...(partSections.has(s.id) && titles.get(s.id) ? { title: titles.get(s.id)! } : {}) } : s,
       ),
@@ -445,20 +460,53 @@ export function planParts(sections: PlannedSection[], target: FieldStructure[], 
 // Local pieces: skeleton map, label questions, sensitive questions, risk/format guesses
 // ---------------------------------------------------------------------------
 
+/** Local texts are in the map's language (the form's): English, else these, else English. */
+type ByLang<T> = { en: T } & Partial<Record<Language, T>>;
+const pick = <T,>(t: ByLang<T>, language: Language): T => t[language] ?? t.en;
+
 const TEXT = {
-  part: { en: (n: number) => `Part ${n}`, fr: (n: number) => `Partie ${n}` },
-  optional: { en: ' (optional)', fr: ' (facultatif)' },
+  part: { en: (n: number) => `Part ${n}`, es: (n: number) => `Parte ${n}`, fr: (n: number) => `Partie ${n}` } as ByLang<(n: number) => string>,
+  optional: { en: ' (optional)', es: ' (opcional)', fr: ' (facultatif)' } as ByLang<string>,
+  pickOne: {
+    en: (labels: string[]) => `Which one applies to you: ${labels.join('; ')}?`,
+    es: (labels: string[]) => `¿Cuál se aplica a usted: ${labels.join('; ')}?`,
+    fr: (labels: string[]) => `Lequel vous correspond : ${labels.join(' ; ')} ?`,
+  } as ByLang<(labels: string[]) => string>,
   sensitive: {
     en: (label: string) => `Please type your ${label} yourself, in the highlighted box.`,
+    es: (label: string) => `Escriba usted mismo este dato («${label}») en la casilla resaltada.`,
     fr: (label: string) => `Merci de taper vous-même ce champ (« ${label} ») dans la case en surbrillance.`,
-  },
+  } as ByLang<(label: string) => string>,
 };
 
-const FALLBACK_RISK_REASON: Record<Exclude<RiskLevel, 'none'>, Record<Language, string>> = {
-  important: { en: 'Check this one carefully: a mistake here can matter.', fr: 'Vérifiez bien : une erreur ici peut compter.' },
-  legal: { en: 'This is an agreement with legal meaning.', fr: 'C’est un accord qui a une valeur juridique.' },
+/** The question most boxes of a set share (Gemini wrote one question for the whole set). */
+function sharedQuestion(ids: string[], updates: Map<string, Partial<FormMapField>>): string | undefined {
+  const first = updates.get(ids[0]!)?.plainQuestion;
+  if (!first) return undefined;
+  const same = ids.filter((id) => updates.get(id)?.plainQuestion === first).length;
+  return same * 2 >= ids.length ? first : undefined;
+}
+
+/** Fields of one pick-one checkbox set (form-structure.ts choiceSets), grouped. */
+function pickOneSets(ids: string[], byId: Map<string, FieldStructure>): string[][] {
+  const sets = new Map<string, string[]>();
+  for (const id of ids) {
+    const key = byId.get(id)?.oneOf;
+    if (key) sets.set(key, [...(sets.get(key) ?? []), id]);
+  }
+  return [...sets.values()].filter((s) => s.length >= 2);
+}
+function isPickOne(ids: string[], byId: Map<string, FieldStructure>): boolean {
+  const key = byId.get(ids[0]!)?.oneOf;
+  return !!key && ids.every((id) => byId.get(id)?.oneOf === key);
+}
+
+const FALLBACK_RISK_REASON: Record<Exclude<RiskLevel, 'none'>, ByLang<string>> = {
+  important: { en: 'Check this one carefully: a mistake here can matter.', es: 'Revíselo bien: un error aquí puede tener consecuencias.', fr: 'Vérifiez bien : une erreur ici peut compter.' },
+  legal: { en: 'This is an agreement with legal meaning.', es: 'Es un acuerdo con valor legal.', fr: 'C’est un accord qui a une valeur juridique.' },
   sensitive: {
     en: 'This is private: someone could misuse it, so never say it out loud.',
+    es: 'Es privado: alguien podría usarlo mal, así que nunca lo diga en voz alta.',
     fr: 'C’est une information privée : ne la dites jamais à voix haute.',
   },
 };
@@ -473,13 +521,25 @@ export function skeletonMap(structure: FormStructure, sections: PlannedSection[]
     sections: sections.map(
       (s, i): FormSection => ({
         id: s.id,
-        title: s.pageTitle || TEXT.part[language](i + 1),
+        title: s.pageTitle || pick(TEXT.part, language)(i + 1),
         fieldIds: s.fieldIds,
         ready: false,
       }),
     ),
-    groups: [],
-    fields: structure.fields.map((f, i) => localField(f, i + 1, language)),
+    // Pick-one checkbox sets work even with no AI: one question listing the choices.
+    groups: pickOneSets(
+      structure.fields.map((f) => f.id),
+      new Map(structure.fields.map((f) => [f.id, f])),
+    ).map((ids) => ({
+      id: `g-${ids[0]}`,
+      plainQuestion: pick(TEXT.pickOne, language)(ids.map((id) => structure.fields.find((f) => f.id === id)!.label)),
+      fieldIds: ids,
+      pick: 'one' as const,
+    })),
+    fields: structure.fields.map((f, i) => {
+      const field = localField(f, i + 1, language);
+      return f.oneOf ? { ...field, groupId: `g-${structure.fields.find((x) => x.oneOf === f.oneOf)!.id}` } : field;
+    }),
     complete: false,
   };
 }
@@ -489,9 +549,9 @@ function localField(f: FieldStructure, order: number, language: Language): FormM
   const risk = guessRisk(f);
   return {
     id: f.id,
-    plainQuestion: f.sensitive ? TEXT.sensitive[language](f.label) : f.label + (f.required ? '' : TEXT.optional[language]),
+    plainQuestion: f.sensitive ? pick(TEXT.sensitive, language)(f.label) : f.label + (f.required ? '' : pick(TEXT.optional, language)),
     risk,
-    riskReason: risk === 'none' ? undefined : FALLBACK_RISK_REASON[risk][language],
+    riskReason: risk === 'none' ? undefined : pick(FALLBACK_RISK_REASON[risk], language),
     order,
     formatHint: formatHintFor(f),
   };
@@ -549,7 +609,7 @@ export function mergeFields(base: FormMap, parts: MapParts, structure: FormStruc
     const prev = previousOnPage(f.id, pageOrder, [...placed]);
     const target = sections.find((s) => prev && s.fieldIds.includes(prev)) ?? sections[0];
     if (target) target.fieldIds.push(f.id);
-    else sections.push({ id: 's1', title: TEXT.part[base.language](1), fieldIds: [f.id], ready: false });
+    else sections.push({ id: 's1', title: pick(TEXT.part, base.language)(1), fieldIds: [f.id], ready: false });
     placed.add(f.id);
   }
   for (const s of sections) s.fieldIds.sort((a, b) => position.get(a)! - position.get(b)!);

@@ -12,11 +12,14 @@
 // Basics
 // ---------------------------------------------------------------------------
 
-/** Languages we support in the hackathon scope. */
-export type Language = 'en' | 'fr';
+/**
+ * Languages Paperwise can talk in (names, direction, ElevenLabs codes: shared/languages.ts).
+ * Changed 2026-10-24 (was 'en' | 'fr'): the finishing pass adds 9 conversation languages.
+ */
+export type Language = 'en' | 'es' | 'fr' | 'ar' | 'pt' | 'zh' | 'ru' | 'vi' | 'tl' | 'hi' | 'ko';
 
-/** The same text in every supported language. */
-export type LocalizedText = Record<Language, string>;
+/** The same text in several languages: English always, others when translated (else English). */
+export type LocalizedText = { en: string } & Partial<Record<Language, string>>;
 
 /** Field kinds the scanner understands. Anything else is skipped. */
 export type FieldKind =
@@ -142,6 +145,11 @@ export interface FieldGroup {
   /** One question that covers all fields in the group. */
   plainQuestion: string;
   fieldIds: string[];
+  /**
+   * 'one' = a set of checkboxes where only one applies (the W-9's tax classification): one
+   * question listing the choices; checking one skips the others. (2026-10-24)
+   */
+  pick?: 'one';
 }
 
 export interface FormMap {
@@ -189,6 +197,8 @@ export interface FieldState {
   /** Why the field needs attention (review / needs_typing), user language. */
   reviewReason?: string;
   source?: ValueSource;
+  /** The user wants to come back to it: asked again after the others, before the review. (2026-10-24) */
+  later?: boolean;
 }
 
 export type SessionPhase =
@@ -261,7 +271,9 @@ export type AgentToolName =
   | 'go_to_field'
   | 'explain_field'
   | 'request_typing'
-  | 'start_review';
+  | 'start_review'
+  /** "I don't know yet" / "I'll come back to it": asked again before the review. (2026-10-24) */
+  | 'come_back_later';
 
 /** What every tool returns to the agent (as a JSON string). */
 export interface ToolResult {
@@ -302,6 +314,8 @@ export type AgentEvent =
   | { type: 'transcript'; role: CaptionLine['role']; text: string; final: boolean; at: number }
   /** The conversation moved to this field (it becomes activeFieldId). */
   | { type: 'go_to_field'; id: string }
+  /** come_back_later: the user will answer this one later (before the review). (2026-10-24) */
+  | { type: 'field_later'; id: string }
   /** A value was validated and written to the page. */
   | {
       type: 'fill_field';

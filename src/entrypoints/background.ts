@@ -5,6 +5,7 @@ import type {
   BackgroundRequest,
   ContentEvent,
   FormMapDone,
+  FontFile,
   FormMapStreamLine,
   HealthResponse,
   Result,
@@ -57,6 +58,9 @@ export default defineBackground(() => {
         return false;
       case 'API_AGENT_TOKEN':
         respond(api<AgentTokenResponse>('GET', '/agent-token'), sendResponse);
+        return true;
+      case 'GET_FONTS':
+        respond(fontFiles(), sendResponse);
         return true;
       default:
         // Not for us (e.g. content events meant for the side panel).
@@ -115,6 +119,33 @@ async function streamFormMap(
     if (finished) break;
   }
   return done ? ok(done) : fail('Form map stream ended early');
+}
+
+const FONTS = [
+  ['Paperwise Sans', '400', '/fonts/atkinson-hyperlegible-latin-400-normal.woff2'],
+  ['Paperwise Sans', '700', '/fonts/atkinson-hyperlegible-latin-700-normal.woff2'],
+  ['Paperwise Display', '400', '/fonts/fraunces-latin-400-normal.woff2'],
+  ['Paperwise Display', '600', '/fonts/fraunces-latin-600-normal.woff2'],
+] as const;
+let fontCache: Promise<Result<FontFile[]>> | null = null;
+
+/** The bundled fonts as base64 (~95 KB), read once from the extension's own files. */
+function fontFiles(): Promise<Result<FontFile[]>> {
+  fontCache ??= Promise.all(
+    FONTS.map(async ([family, weight, path]) => {
+      const bytes = new Uint8Array(await (await fetch(browser.runtime.getURL(path))).arrayBuffer());
+      let bin = '';
+      for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+      return { family, weight, base64: btoa(bin) };
+    }),
+  ).then(
+    (data) => ok(data),
+    (err: unknown) => {
+      fontCache = null;
+      return fail(String(err));
+    },
+  );
+  return fontCache;
 }
 
 function broadcast(event: ContentEvent) {

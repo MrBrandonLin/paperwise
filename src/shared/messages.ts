@@ -28,7 +28,16 @@ export type BackgroundRequest =
   | { type: 'API_FORM_MAP'; scan: ScanResult; language: Language; requestId: string }
   /** Start building early (hover on the floating button) so the panel finds it ready. */
   | { type: 'API_FORM_MAP_PREFETCH'; scan: ScanResult; language: Language }
-  | { type: 'API_AGENT_TOKEN' };
+  | { type: 'API_AGENT_TOKEN' }
+  /** The in-page UI's fonts, as bytes (pages never load extension URLs themselves). */
+  | { type: 'GET_FONTS' };
+
+/** One bundled font file (GET_FONTS answer). */
+export interface FontFile {
+  family: string;
+  weight: string;
+  base64: string;
+}
 
 /** Content script → side panel broadcast events (runtime.sendMessage). */
 export type ContentEvent =
@@ -41,7 +50,29 @@ export type ContentEvent =
   | { type: 'EVENT_FORM_MAP'; requestId: string; line: FormMapStreamLine }
   /** Fields appeared, disappeared or changed options (e.g. a conditional section opened). */
   | { type: 'EVENT_FIELDS_CHANGED'; scan: ScanResult }
-  | { type: 'EVENT_PAGE_CHANGED'; url: string };
+  | { type: 'EVENT_PAGE_CHANGED'; url: string }
+  /** PDF viewer: every page and field is on screen, scanning works now. */
+  | { type: 'EVENT_PDF_READY'; fields: number }
+  /** PDF viewer: this PDF can't be filled (the code picks the friendly message). */
+  | { type: 'EVENT_PDF_FAILED'; code: PdfErrorCode };
+
+/** Why a PDF can't be filled. The viewer and the panel show a friendly sentence for each. */
+export type PdfErrorCode = 'noFields' | 'xfa' | 'password' | 'corrupted' | 'fileAccess' | 'expired' | 'unreadable' | 'notPdf';
+
+/** Side panel → PDF viewer tab (tabs.sendMessage), besides the ContentRequests. */
+export type PdfViewerRequest =
+  | { type: 'PDF_STATUS' }
+  /** The review is done: the viewer's "Download filled PDF" button turns on. */
+  | { type: 'PDF_REVIEW_DONE'; done: boolean }
+  /** The panel's done screen: save the filled PDF (only once the review is done). */
+  | { type: 'PDF_DOWNLOAD' };
+
+export interface PdfStatus {
+  state: 'loading' | 'ready' | 'error';
+  code?: PdfErrorCode;
+  fields: number;
+  name: string;
+}
 
 /** Mic permission tab → side panel broadcast. */
 export type MicEvent = { type: 'EVENT_MIC_GRANTED' };

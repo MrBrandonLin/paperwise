@@ -32,9 +32,11 @@ export interface FlashBox {
   height: number;
 }
 
-const WORDS: Record<Language, { open: string; active: string; review: string; typing: string }> = {
+const WORDS: { en: { open: string; active: string; review: string; typing: string } } & Partial<Record<Language, { open: string; active: string; review: string; typing: string }>> = {
   en: { open: 'Paperwise: help me fill this form', active: 'Paperwise', review: 'Check this', typing: 'Type it here yourself' },
+  es: { open: 'Paperwise: ayúdeme a llenar este formulario', active: 'Paperwise', review: 'Revisar', typing: 'Escríbalo aquí usted mismo' },
   fr: { open: 'Paperwise : m’aider à remplir ce formulaire', active: 'Paperwise', review: 'À vérifier', typing: 'Tapez-le ici vous-même' },
+  ar: { open: 'Paperwise: ساعدني في ملء هذا النموذج', active: 'Paperwise', review: 'تحقق من هذا', typing: 'اكتبه هنا بنفسك' },
 };
 
 export function FloatingButton({
@@ -54,11 +56,11 @@ export function FloatingButton({
   return (
     <button
       type="button"
-      aria-label={WORDS[language].open}
+      aria-label={(WORDS[language] ?? WORDS.en).open}
       onClick={onOpen}
       onPointerEnter={onIntent}
       onFocus={onIntent}
-      className="glass-light pointer-events-auto fixed right-6 bottom-6 z-[2147483647] flex h-14 cursor-pointer items-center gap-2 rounded-full bg-card/80 pr-5 pl-2 font-sans text-base font-bold text-foreground shadow-paper transition hover:bg-card focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+      className="glass-light pointer-events-auto flex h-14 cursor-pointer items-center gap-2 rounded-full bg-card/80 pr-5 pl-2 font-sans text-base font-bold text-foreground shadow-paper transition hover:bg-card active:scale-[.97] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
     >
       <img src={logo} alt="" className="size-9" />
       Paperwise
@@ -71,19 +73,20 @@ export function FloatingButton({
   );
 }
 
+/** Every ring has a white edge outside it: visible on white, dark and busy pages alike. */
 const STATUS_STYLE: Record<FieldStatus, string> = {
   empty: '',
-  filled: 'border-2 border-primary/70',
-  review: 'border-3 border-warning bg-warning-soft/25 shadow-[0_0_0_6px_var(--warning-soft)]',
-  needs_typing: 'border-3 border-dashed border-primary',
-  skipped: 'border-2 border-dashed border-muted-foreground/50',
+  filled: 'border-2 border-primary shadow-[0_0_0_2px_white]',
+  review: 'border-3 border-warning bg-warning-soft/25 shadow-[0_0_0_2px_white,0_0_0_8px_var(--warning-soft)]',
+  needs_typing: 'border-3 border-dashed border-primary shadow-[0_0_0_2px_white]',
+  skipped: 'border-2 border-dashed border-muted-foreground shadow-[0_0_0_2px_white]',
 };
 
 /** Space between the field and its highlight ring (his guided-field used a generous offset). */
 const PAD = 6;
 
 export function HighlightLayer({ boxes, flashes, language }: { boxes: Box[]; flashes: FlashBox[]; language: Language }) {
-  const w = WORDS[language];
+  const w = WORDS[language] ?? WORDS.en;
   return (
     <div className="pointer-events-none fixed inset-0 z-[2147483646] overflow-hidden font-sans" aria-hidden="true">
       {boxes.map((b) => (
@@ -105,9 +108,9 @@ export function HighlightLayer({ boxes, flashes, language }: { boxes: Box[]; fla
           className="absolute flex items-center"
           style={{ top: f.top, left: f.left, width: Math.max(f.width, 40), height: f.height }}
         >
-          <span className="flow-in ml-1 inline-flex max-w-full items-center gap-1 truncate rounded-md bg-filled px-2 py-0.5 font-display text-base text-foreground shadow-paper">
-            <Check className="size-4 shrink-0 text-primary" />
-            {f.text}
+          <span className="flow-in ml-1 inline-flex max-w-full items-center gap-1 rounded-md bg-filled px-2 py-0.5 font-display text-base text-foreground shadow-paper ring-2 ring-white">
+            <span className="type-in truncate">{f.text}</span>
+            <Check className="check-pop size-4 shrink-0 text-primary" />
           </span>
         </div>
       ))}
@@ -115,7 +118,7 @@ export function HighlightLayer({ boxes, flashes, language }: { boxes: Box[]; fla
   );
 }
 
-function Chip({ box, words }: { box: Box; words: (typeof WORDS)[Language] }) {
+function Chip({ box, words }: { box: Box; words: (typeof WORDS)['en'] }) {
   let content: ReactNode = null;
   let tone = 'bg-primary text-primary-foreground';
   if (box.status === 'review') {
@@ -147,5 +150,94 @@ function Chip({ box, words }: { box: Box; words: (typeof WORDS)[Language] }) {
   if (!content) return null;
   return (
     <span className={`absolute -top-3 right-2 flex items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-bold whitespace-nowrap shadow ${tone}`}>{content}</span>
+  );
+}
+
+const PROMPT_WORDS: { en: { tag: string; title: string; yes: string; no: string; close: string } } & Partial<Record<Language, { tag: string; title: string; yes: string; no: string; close: string }>> = {
+  en: { tag: 'Form detected', title: 'Want help filling this out?', yes: 'Help me fill this', no: 'Not now', close: 'Close' },
+  es: { tag: 'Formulario detectado', title: '¿Le ayudo a llenarlo?', yes: 'Ayúdeme a llenarlo', no: 'Ahora no', close: 'Cerrar' },
+  fr: { tag: 'Formulaire détecté', title: 'Besoin d’aide pour le remplir ?', yes: 'Aidez-moi', no: 'Pas maintenant', close: 'Fermer' },
+  ar: { tag: 'تم العثور على نموذج', title: 'هل تريد مساعدة في ملئه؟', yes: 'ساعدني في ملئه', no: 'ليس الآن', close: 'إغلاق' },
+};
+
+const GLASS =
+  'linear-gradient(135deg,rgba(255,255,255,.7),rgba(60,110,190,.45) 38%,rgba(44,79,134,.75) 72%,rgba(70,160,140,.65))';
+const GLASS_SHADOW =
+  'inset 2px 2px 5px rgba(255,255,255,.65),inset -3px -4px 7px rgba(44,79,134,.6),0 4px 9px rgba(44,79,134,.25)';
+
+/** The "Form detected" pop-up: the little glass guy talking next to a speech bubble. */
+export function FormPrompt({
+  language,
+  onOpen,
+  onIntent,
+  onDismiss,
+}: {
+  language: Language;
+  onOpen: () => void;
+  onIntent: () => void;
+  onDismiss: () => void;
+}) {
+  const w = PROMPT_WORDS[language] ?? PROMPT_WORDS.en;
+  return (
+    <div
+      role="dialog"
+      aria-label={w.title}
+      className="pw-prompt-in pointer-events-auto flex items-end gap-3 font-sans text-foreground"
+    >
+      <style>{`@keyframes pw-in{from{opacity:0;transform:translateY(24px)}to{opacity:1;transform:none}}
+@keyframes pw-talk{0%{transform:scaleY(.35) scaleX(1.1)}100%{transform:scaleY(1.5) scaleX(.85)}}
+.pw-prompt-in{animation:pw-in .5s cubic-bezier(.2,.8,.2,1) both}
+.pw-mouth{animation:pw-talk .38s ease-in-out infinite alternate}
+@media (prefers-reduced-motion:reduce){.pw-prompt-in,.pw-mouth{animation:none}}`}</style>
+      <div
+        className="glass-light relative w-[270px] rounded-2xl bg-card/80 px-[18px] py-4 shadow-paper"
+        onPointerEnter={onIntent}
+      >
+        <button
+          type="button"
+          aria-label={w.close}
+          onClick={onDismiss}
+          className="absolute top-2 right-2.5 cursor-pointer text-lg leading-none text-muted-foreground hover:text-foreground"
+        >
+          ×
+        </button>
+        <div className="text-[10px] font-bold tracking-[.08em] text-primary uppercase">{w.tag}</div>
+        <div className="mt-1 mr-6 mb-3.5 font-display text-lg leading-snug font-semibold">{w.title}</div>
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onOpen}
+            onFocus={onIntent}
+            className="flex-1 cursor-pointer rounded-[10px] bg-primary px-3 py-2.5 text-sm font-bold text-primary-foreground hover:bg-primary/90 focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-primary"
+          >
+            {w.yes}
+          </button>
+          <button
+            type="button"
+            onClick={onDismiss}
+            className="cursor-pointer rounded-[10px] px-3 py-2.5 text-sm font-bold text-muted-foreground hover:text-foreground"
+          >
+            {w.no}
+          </button>
+        </div>
+        <span
+          aria-hidden="true"
+          className="absolute -right-2.5 bottom-7 border-y-8 border-l-[10px] border-y-transparent border-l-card"
+        />
+      </div>
+      <div aria-hidden="true" className="shrink-0">
+        <div
+          className="relative mx-auto mb-1.5 size-10 rounded-full"
+          style={{ background: GLASS, boxShadow: GLASS_SHADOW, border: '1px solid rgba(255,255,255,.75)' }}
+        >
+          <span className="absolute top-1.5 left-1.5 h-[7px] w-3.5 -rotate-[35deg] rounded-full bg-white/80" />
+          <span className="pw-mouth absolute bottom-[9px] left-[13px] h-[7px] w-3.5 rounded-full bg-white" />
+        </div>
+        <div
+          className="h-11 w-[54px] rounded-t-[22px] rounded-b-[3px]"
+          style={{ background: GLASS, boxShadow: GLASS_SHADOW, border: '1px solid rgba(255,255,255,.75)' }}
+        />
+      </div>
+    </div>
   );
 }

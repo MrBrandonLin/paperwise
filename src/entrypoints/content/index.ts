@@ -1,4 +1,4 @@
-import { MIN_FIELDS_FOR_BUTTON } from '@/shared/config';
+import { looksLikeAForm } from '@/shared/form-detect';
 import type { ContentEvent, ContentRequest } from '@/shared/messages';
 import { openPanel, prefetchFormMap } from './floating-button';
 import { handleContentRequest } from './handler';
@@ -50,12 +50,13 @@ export default defineContentScript({
 
     // Forms are often rendered late by JS frameworks: also check whenever fields change.
     let mounted = false;
-    const maybeMount = (fieldCount: number) => {
-      if (mounted || ctx.isInvalid || fieldCount < MIN_FIELDS_FOR_BUTTON) return;
+    // Only on real forms: never for a lone search box or a login.
+    const maybeMount = (formLike: boolean) => {
+      if (mounted || ctx.isInvalid || !formLike) return;
       ensureUi().showButton();
       mounted = true;
     };
-    maybeMount(scanPage().fields.filter((f) => f.visible).length);
+    maybeMount(looksLikeAForm(scanPage()));
 
     ctx.onInvalidated(
       watchUserEdits((id, r) =>
@@ -64,7 +65,7 @@ export default defineContentScript({
     );
     ctx.onInvalidated(
       watchFieldChanges((scan) => {
-        maybeMount(scan.fields.filter((f) => f.visible).length);
+        maybeMount(looksLikeAForm(scan));
         broadcast({ type: 'EVENT_FIELDS_CHANGED', scan });
       }),
     );

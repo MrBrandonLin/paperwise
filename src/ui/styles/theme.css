@@ -56,14 +56,14 @@
   --secondary: oklch(0.93 0.012 250);
   --secondary-foreground: oklch(0.3 0.025 255);
   --muted: oklch(0.93 0.01 250);
-  --muted-foreground: oklch(0.52 0.02 255);
+  --muted-foreground: oklch(0.46 0.02 255); /* ≥ 4.5:1 on cards and glass (was 0.52) */
   --accent: oklch(0.9 0.035 250);
   --accent-foreground: oklch(0.32 0.05 255);
   --destructive: oklch(0.577 0.2 27);
   --destructive-foreground: oklch(0.98 0.005 250);
   --warning: oklch(0.78 0.11 80);
   --warning-soft: oklch(0.94 0.045 85);
-  --warning-foreground: oklch(0.42 0.07 70);
+  --warning-foreground: oklch(0.38 0.07 70);
   --filled: oklch(0.91 0.045 250);
   --paper: oklch(0.985 0.003 250);
   --border: oklch(0.86 0.015 250);
@@ -76,6 +76,42 @@
   --assistant-glass-edge: color-mix(in oklab, var(--primary-foreground) 70%, transparent);
   --assistant-glass-shine: color-mix(in oklab, var(--paper) 78%, transparent);
   --assistant-glass-shadow: inset 2px 2px 5px color-mix(in oklab, var(--paper) 65%, transparent), inset -3px -4px 7px color-mix(in oklab, var(--primary) 60%, transparent), 0 4px 9px color-mix(in oklab, var(--primary) 25%, transparent);
+}
+
+/* Dark mode: follows the OS setting, in the panel. The in-page UI (:host, on other sites)
+   stays light: a dark card on a white page looks heavy, and its rings are made for any page. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --host: oklch(0.72 0.08 165);
+    --host-foreground: oklch(0.18 0.02 165);
+    --background: oklch(0.2 0.018 255);
+    --foreground: oklch(0.94 0.008 250);
+    --card: oklch(0.25 0.02 255);
+    --card-foreground: oklch(0.94 0.008 250);
+    --primary: oklch(0.74 0.1 255);
+    --primary-foreground: oklch(0.18 0.02 255);
+    --secondary: oklch(0.3 0.02 255);
+    --secondary-foreground: oklch(0.92 0.01 250);
+    --muted: oklch(0.31 0.016 255);
+    --muted-foreground: oklch(0.78 0.015 255);
+    --accent: oklch(0.36 0.04 255);
+    --accent-foreground: oklch(0.93 0.01 250);
+    --warning: oklch(0.8 0.12 80);
+    --warning-soft: oklch(0.33 0.06 75);
+    --warning-foreground: oklch(0.9 0.09 85);
+    --filled: oklch(0.34 0.05 255);
+    --paper: oklch(0.23 0.02 255);
+    --border: oklch(0.4 0.02 255);
+    --input: oklch(0.4 0.02 255);
+    --ring: oklch(0.74 0.1 255);
+    --shadow-paper: 0 1px 2px oklch(0 0 0 / 0.3), 0 20px 50px -20px oklch(0 0 0 / 0.5);
+  }
+}
+
+/* Visible keyboard focus everywhere (WCAG 2.4.7 / 2.4.11). */
+:where(button, a, input, select, textarea, [tabindex]:not([tabindex='-1'])):focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
 }
 
 @layer base {
@@ -126,6 +162,9 @@
 .reception-bubble { left: 14px; right: 92px; top: 14px; bottom: 64px; }
 .reception-bubble-content { height: 100%; overflow-y: auto; overflow-wrap: anywhere; }
 .reception-bubble::after { content: ''; position: absolute; right: -9px; bottom: 14px; border-top: 8px solid transparent; border-bottom: 8px solid transparent; border-left: 10px solid var(--paper); }
+/* Arabic: the receptionist stands on the left, the bubble points at her. */
+[dir='rtl'] .reception-bubble { left: 92px; right: 14px; }
+[dir='rtl'] .reception-bubble::after { right: auto; left: -9px; border-left: 0; border-right: 10px solid var(--paper); }
 @keyframes receptionist-talk { 0% { transform: scaleY(.35) scaleX(1.1); } 100% { transform: scaleY(1.5) scaleX(.85); } }
 @keyframes receptionist-listen { 0%, 100% { transform: rotate(-8deg) scale(1); } 50% { transform: rotate(4deg) scale(1.12); } }
 @keyframes receptionist-think { 0%, 100% { transform: rotate(6deg); } 50% { transform: rotate(-4deg); } }

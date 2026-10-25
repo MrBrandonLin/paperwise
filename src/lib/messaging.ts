@@ -1,5 +1,6 @@
 import type { ScriptPublicPath } from 'wxt/utils/inject-script';
 import type { BackgroundRequest, ContentRequest, Result } from '@/shared/messages';
+import { isViewerUrl } from '@/pdf/urls';
 
 /** Shown instead of a technical error on pages where extensions can't run. */
 export const UNSUPPORTED_PAGE = "Paperwise can't work on this page.";
@@ -23,6 +24,8 @@ export async function toContent<T>(tabId: number, msg: ContentRequest): Promise<
   try {
     return await send<T>(tabId, msg);
   } catch {
+    // Our PDF viewer page answers like a content script once it has loaded: wait for it, never inject.
+    if (isViewerUrl((await browser.tabs.get(tabId).catch(() => null))?.url)) return toViewer<T>(tabId, msg);
     const injected = await ensureContentScript(tabId);
     if (!injected.ok) return injected;
     try {
@@ -31,6 +34,19 @@ export async function toContent<T>(tabId: number, msg: ContentRequest): Promise<
       return { ok: false, error: 'Paperwise could not connect to this page. Reload the page and try again.' };
     }
   }
+}
+
+/** The PDF viewer tab is still loading (or reloading): retry for a few seconds. */
+async function toViewer<T>(tabId: number, msg: ContentRequest): Promise<Result<T>> {
+  for (let i = 0; i < 40; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    try {
+      return await send<T>(tabId, msg);
+    } catch {
+      // not listening yet
+    }
+  }
+  return { ok: false, error: 'Paperwise could not connect to the PDF. Reload its tab and try again.' };
 }
 
 async function send<T>(tabId: number, msg: ContentRequest): Promise<Result<T>> {

@@ -14,6 +14,8 @@ export interface Prefs {
   speed: 'normal' | 'slower';
   /** Typing only (no microphone). */
   typing: boolean;
+  /** Noisy room: the microphone listens only while the user holds the talk button or Space. */
+  holdToTalk: boolean;
 }
 
 const KEY = 'paperwise-prefs';
@@ -24,6 +26,7 @@ export const DEFAULT_PREFS: Prefs = {
   textSize: 'normal',
   speed: 'normal',
   typing: false,
+  holdToTalk: false,
 };
 
 /** Speaking speed sent to ElevenLabs (0.7–1.2). */

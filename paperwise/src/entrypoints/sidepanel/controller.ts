@@ -175,6 +175,8 @@ export interface VoiceOptions {
   textOnly?: boolean;
   /** Speaking speed 0.7–1.2. */
   speed?: number;
+  /** Noisy room: the microphone is off unless the user holds the talk button (or Space). */
+  holdToTalk?: boolean;
 }
 
 /** The ElevenLabs voice session (one at a time), used by both panels. */
@@ -240,6 +242,7 @@ function useVoice(engine: FormEngine, write: (line: string) => void) {
       textOnly: opts.textOnly,
     });
     s.onLatency = () => setTurns([...s.turns]);
+    s.setMicMuted(!!opts.holdToTalk && !opts.textOnly);
     session.current = s;
     const res = await s.start();
     setActive(res.ok);
@@ -281,7 +284,18 @@ function useVoice(engine: FormEngine, write: (line: string) => void) {
     session.current?.requestLanguage(language);
   }
 
+  /** Hold to talk on/off, during a conversation too (no reconnect). */
+  function setHoldToTalk(on: boolean) {
+    options.current = { ...options.current, holdToTalk: on };
+    session.current?.setMicMuted(on);
+  }
+
+  /** Hold to talk: the user is holding the talk button (or Space). */
+  function talk(on: boolean) {
+    if (options.current.holdToTalk) session.current?.setMicMuted(!on);
+  }
+
   const micLevel = useCallback(() => session.current?.inputLevel() ?? 0, []);
 
-  return { active, problem, textOnly, turns, start, end, restart, sendText, requestLanguage, micLevel, stats: () => session.current?.stats() };
+  return { active, problem, textOnly, turns, start, end, restart, sendText, requestLanguage, setHoldToTalk, talk, micLevel, stats: () => session.current?.stats() };
 }

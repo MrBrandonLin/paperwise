@@ -74,8 +74,8 @@ function LiveApp() {
 
   const speed = SPEEDS[prefs.speed];
   const actions: PanelActions = {
-    start: () => void pw.voice.start({ speed }),
-    startTyping: () => void pw.voice.start({ speed, textOnly: true }),
+    start: () => void pw.voice.start({ speed, holdToTalk: prefs.holdToTalk }),
+    startTyping: () => void pw.voice.start({ speed, holdToTalk: prefs.holdToTalk, textOnly: true }),
     end: () => void pw.voice.end(),
     sendText: pw.voice.sendText,
     setLanguage: (language: Language) => {
@@ -90,8 +90,13 @@ function LiveApp() {
     setTyping: (typing) => {
       update({ typing });
       if (pw.voice.active && typing !== pw.voice.textOnly) void pw.voice.restart({ textOnly: typing });
-      else if (typing && pw.voice.problem === 'mic') void pw.voice.start({ speed, textOnly: true });
+      else if (typing && pw.voice.problem === 'mic') void pw.voice.start({ speed, holdToTalk: prefs.holdToTalk, textOnly: true });
     },
+    setHoldToTalk: (holdToTalk) => {
+      update({ holdToTalk });
+      pw.voice.setHoldToTalk(holdToTalk);
+    },
+    talk: pw.voice.talk,
     close: () => window.close(),
     micLevel: pw.voice.micLevel,
     retry: () => {
@@ -143,7 +148,7 @@ function useDebugToggle() {
 function MockApp({ language }: { language: Language }) {
   const [state, setState] = useState<FormState>(() => initialFormState(language));
   const [player] = useState(() => createMockPlayer({ language, speed: Number(new URLSearchParams(location.search).get('speed') ?? 1) }));
-  const [prefs, setPrefs] = useState<Prefs>({ onboarded: true, language, textSize: 'normal', speed: 'normal', typing: false });
+  const [prefs, setPrefs] = useState<Prefs>({ onboarded: true, language, textSize: 'normal', speed: 'normal', typing: false, holdToTalk: false });
   useEffect(() => {
     const off = player.subscribe((e) =>
       setState((s) => {
@@ -170,6 +175,8 @@ function MockApp({ language }: { language: Language }) {
     setTextSize: (textSize) => setPrefs((p) => ({ ...p, textSize })),
     setSpeed: (speed) => setPrefs((p) => ({ ...p, speed })),
     setTyping: (typing) => setPrefs((p) => ({ ...p, typing })),
+    setHoldToTalk: (holdToTalk) => setPrefs((p) => ({ ...p, holdToTalk })),
+    talk: () => {},
     close: () => window.close(),
     // A fake voice level while the mock "listens".
     micLevel: () => (listening ? 0.45 + 0.35 * Math.sin(performance.now() / 120) : 0.03),

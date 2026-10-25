@@ -25,6 +25,7 @@ class FakeConversation implements ConversationLike {
   typed: string[] = [];
   ended = false;
   volume = 0.4;
+  muted: boolean[] = [];
   constructor(readonly opts: Opts) {}
   async endSession() {
     this.ended = true;
@@ -38,6 +39,9 @@ class FakeConversation implements ConversationLike {
   }
   getInputVolume() {
     return this.volume;
+  }
+  setMicMuted(muted: boolean) {
+    this.muted.push(muted);
   }
 }
 
@@ -283,6 +287,23 @@ console.log('\n=== The user switches language without asking (Russian, live bug)
   await new Promise((r) => setTimeout(r, 400));
   check(!convo().updates.slice(before).some((u) => u.includes('The user speaks')), 'no correction when the agent already speaks Russian');
   await session.end();
+}
+
+console.log('\n=== Hold to talk (noisy room): the microphone is off unless the user holds the button');
+{
+  const { session, convo } = setup('en');
+  session.setMicMuted(true);
+  await session.start();
+  check(convo().muted.at(-1) === true, 'starts muted: other voices in the room are not heard');
+  session.setMicMuted(false);
+  check(convo().muted.at(-1) === false, 'holding the button opens the microphone');
+  session.setMicMuted(true);
+  check(convo().muted.at(-1) === true, 'letting go closes it again');
+  await session.end();
+  const plain = setup('en');
+  await plain.session.start();
+  check(plain.convo().muted.length === 0, 'hold to talk off: the microphone is never muted');
+  await plain.session.end();
 }
 
 console.log(failures ? `\n${failures} FAILED, ${passes} passed` : `\nALL ${passes} PASSED`);

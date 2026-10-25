@@ -28,6 +28,8 @@ export interface ConversationLike {
   /** A typed message, handled by the agent like a spoken one. */
   sendUserMessage(text: string): void;
   getInputVolume(): number;
+  /** Hold to talk: no sound reaches the agent while muted (the SDK's setMicMuted). */
+  setMicMuted?(muted: boolean): void;
 }
 
 export interface VoiceDeps {
@@ -122,6 +124,7 @@ export class VoiceSession {
   private explaining: string | null = null;
   /** The language of the user's last clear words (detectLanguage). */
   private userSpeaks: Language | null = null;
+  private micMuted = false;
   /** Last typed message: the server may echo it back as a user transcript (don't count it twice). */
   private typed: { text: string; at: number } | null = null;
 
@@ -220,6 +223,7 @@ export class VoiceSession {
       return { ok: false, error: String(err instanceof Error ? err.message : err) };
     }
 
+    if (this.micMuted) this.conversation.setMicMuted?.(true);
     // Keep the agent in sync with every change in the form state.
     this.unsubscribe = this.engine.onEvent((e) => this.noteChange(e));
     this.volumeTimer = setInterval(() => this.sampleVolume(), 30);
@@ -258,6 +262,15 @@ export class VoiceSession {
     const text = `(I chose ${name} in the Paperwise settings. Please speak ${name} with me from now on, and carry on where we were.)`;
     this.typed = { text, at: this.now() };
     this.conversation.sendUserMessage(text);
+  }
+
+  /**
+   * Hold to talk (noisy rooms): muted, the agent hears nothing, so other people's voices can't
+   * answer for the user or cut the agent off. Set before start() to begin muted.
+   */
+  setMicMuted(muted: boolean) {
+    this.micMuted = muted;
+    this.conversation?.setMicMuted?.(muted);
   }
 
   /** Microphone level 0..1 while the conversation runs (drives the voice meter). */

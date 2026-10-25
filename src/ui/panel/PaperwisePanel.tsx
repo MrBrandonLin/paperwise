@@ -355,13 +355,22 @@ function ProgressStrip({ view, typing }: { view: PanelView; typing: boolean }) {
 function SettingsSheet({ view, prefs, actions, onClose }: { view: PanelView; prefs: PanelPrefs; actions: PanelActions; onClose: () => void }) {
   const { copy } = view;
   return (
-    <section className="glass-light mx-4 mt-2 max-h-[55%] overflow-y-auto rounded-xl px-4 py-3 [--glass-tint:var(--primary)]" aria-label={copy.preferences}>
+    <section className="glass-light mx-4 mt-2 max-h-[80%] overflow-y-auto rounded-xl px-4 py-3 [--glass-tint:var(--primary)]" aria-label={copy.preferences}>
       <div className="mb-2 flex items-center justify-between font-bold">
         {copy.preferences}
         <IconButton label={copy.closeSettings} onClick={onClose}>
           <X />
         </IconButton>
       </div>
+      <label className="flex min-h-11 items-center justify-between gap-2">
+        <span className="font-bold">{copy.holdToTalk}</span>
+        <input type="checkbox" checked={prefs.holdToTalk} onChange={(e) => actions.setHoldToTalk(e.target.checked)} className="size-5 shrink-0 accent-primary" />
+      </label>
+      <p className="mb-1 text-xs text-muted-foreground">{copy.holdToTalkNote}</p>
+      <label className="mb-3 flex min-h-11 items-center justify-between gap-2">
+        <span className="font-bold">{copy.typingOnly}</span>
+        <input type="checkbox" checked={prefs.typing} onChange={(e) => actions.setTyping(e.target.checked)} className="size-5 shrink-0 accent-primary" />
+      </label>
       <label className="flex flex-col gap-1">
         <span className="font-bold">{copy.language}</span>
         <select
@@ -385,15 +394,6 @@ function SettingsSheet({ view, prefs, actions, onClose }: { view: PanelView; pre
       />
       <Segmented label={copy.speed} value={prefs.speed} options={(['normal', 'slower'] as const).map((v) => ({ value: v, label: copy.speeds[v] }))} onChange={actions.setSpeed} />
       <p className="mt-1 text-xs text-muted-foreground">{copy.speedNote}</p>
-      <label className="mt-3 flex min-h-11 items-center justify-between gap-2">
-        <span className="font-bold">{copy.typingOnly}</span>
-        <input type="checkbox" checked={prefs.typing} onChange={(e) => actions.setTyping(e.target.checked)} className="size-5 accent-primary" />
-      </label>
-      <label className="mt-1 flex min-h-11 items-center justify-between gap-2">
-        <span className="font-bold">{copy.holdToTalk}</span>
-        <input type="checkbox" checked={prefs.holdToTalk} onChange={(e) => actions.setHoldToTalk(e.target.checked)} className="size-5 accent-primary" />
-      </label>
-      <p className="text-xs text-muted-foreground">{copy.holdToTalkNote}</p>
     </section>
   );
 }

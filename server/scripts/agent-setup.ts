@@ -25,6 +25,8 @@ export const AGENT_SETTINGS = {
     agent: {
       first_message: '', // sent per session (welcome + first question of this form)
       language: 'en',
+      // Noise can't cut off the welcome either.
+      disable_first_message_interruptions: !env.elevenlabsInterruptions,
       prompt: {
         prompt: AGENT_BASE_PROMPT, // replaced per session with the form map baked in
         // Switch voice + speech recognition when the user speaks or asks for another language.
@@ -56,12 +58,16 @@ export const AGENT_SETTINGS = {
       // Start the LLM during the pause, before the turn is certain: cuts perceived latency.
       speculative_turn: true,
       turn_timeout: 10,
+      // Interruptions off (default): a cough, a door or people talking nearby can't stop the agent
+      // mid-sentence (live, crowded room). What the user says meanwhile still counts for the next
+      // turn. ELEVENLABS_INTERRUPTIONS=on brings back "Wait, what's a guarantor?" mid-sentence.
+      transcribe_on_disabled_interruptions: true,
     },
     conversation: {
       client_events: [
         'conversation_initiation_metadata',
         'audio',
-        'interruption',
+        ...(env.elevenlabsInterruptions ? ['interruption'] : []),
         'user_transcript',
         'tentative_user_transcript',
         'agent_response',

@@ -199,7 +199,8 @@ carry only `filled: true/false`. The form map's risk can only raise this, never 
 - Configured by `agent:setup` through the API (no clicking): client tools (wait for response),
   LLM `ELEVENLABS_LLM` (default claude-haiku-4-5, thinking 0, temp 0.2), TTS `eleven_v4_turbo`
   (ELEVENLABS_TTS_MODEL; 90+ languages from one voice, expressive_mode off), turn eagerness normal +
-  speculative_turn, built-in `language_detection` tool (switches voice + ASR mid-conversation),
+  speculative_turn, interruptions OFF by default (crowded rooms: noise cut the agent off; ELEVENLABS_INTERRUPTIONS=on
+  restores them; what the user says meanwhile is kept, transcribe_on_disabled_interruptions), built-in `language_detection` tool (switches voice + ASR mid-conversation),
   `language_presets` for every language in shared/languages.ts (Tagalog = `fil`), client events
   (tentative transcripts, chat response parts, tool calls, agent_tool_response[_full_payload] → the
   panel follows a language switch), overrides allowed (prompt, llm, first message, language, ASR

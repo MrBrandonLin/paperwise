@@ -43,6 +43,13 @@ Your folder was at the Windows-paths fix. It now has the whole finishing pass:
    Tested: `pnpm test:voice` (mute/unmute reach the SDK) and `pnpm test:reach` (button and Space).
    No server or agent change: ElevenLabs has no setting that filters other voices.
 
+5. **Noise no longer cuts the agent off.** ElevenLabs has no sensitivity setting, but it can stop
+   sound from interrupting the agent mid-sentence: now off by default (`agent:setup`). A cough, a
+   door or people nearby can't stop it; what the user says meanwhile is still heard for the next
+   turn. The welcome can't be cut off either. Trade-off: the user waits for the agent to finish a
+   sentence before asking "what's a guarantor?". `ELEVENLABS_INTERRUPTIONS=on` in `server/.env`
+   (then `agent:setup`) brings interruptions back. Combine with hold to talk for a loud room.
+
 ## Before the demo: new ElevenLabs key
 
 1. In `paperwise/server/.env`: put the new key in `ELEVENLABS_API_KEY=` and empty

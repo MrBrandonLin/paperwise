@@ -19,6 +19,12 @@ export interface Copy {
   speeds: Record<'normal' | 'slower', string>;
   speedNote: string;
   typingOnly: string;
+  /** Noisy room setting: hold to talk. */
+  holdToTalk: string;
+  holdToTalkNote: string;
+  /** The talk button in hold-to-talk mode, idle and held. */
+  holdButton: string;
+  holding: string;
   language: string;
   languageNote: string;
   connected: string;
@@ -75,7 +81,7 @@ export interface Copy {
   closeHelp: string;
   helpIntro: string;
   shortcutsTitle: string;
-  shortcuts: Record<'start' | 'explain' | 'repeat' | 'type' | 'help' | 'close', string>;
+  shortcuts: Record<'start' | 'explain' | 'repeat' | 'type' | 'help' | 'close' | 'hold', string>;
   doneTitle: string;
   doneText: string;
   donePdf: string;
@@ -128,6 +134,10 @@ const en: Copy = {
   speeds: { normal: 'Normal', slower: 'Slower' },
   speedNote: 'Changes right away: Paperwise reconnects and continues.',
   typingOnly: 'Typing only (no microphone)',
+  holdToTalk: 'Noisy room: hold to talk',
+  holdToTalkNote: 'The microphone listens only while you hold the Talk button or the Space bar, so other voices around you are ignored.',
+  holdButton: 'Hold to talk',
+  holding: 'Listening… let go when you’re done',
   language: 'Language',
   languageNote: 'You can switch at any time, even in the middle of a conversation. You can also just ask: “Can we speak Spanish?”',
   connected: 'Connected to this form',
@@ -183,7 +193,7 @@ const en: Copy = {
   closeHelp: 'Close help',
   helpIntro: 'Talk or type, in your language. Ask “what does this mean?”, “why do they need this?” or “is it safe?” at any time. To change an answer, just say so, or type on the page.',
   shortcutsTitle: 'Keyboard shortcuts',
-  shortcuts: { start: 'Start or end the conversation', explain: 'Explain the current question', repeat: 'Repeat the last question', type: 'Type an answer', help: 'Show or hide this help', close: 'Close help or settings' },
+  shortcuts: { start: 'Start or end the conversation', explain: 'Explain the current question', repeat: 'Repeat the last question', type: 'Type an answer', help: 'Show or hide this help', close: 'Close help or settings', hold: 'Hold to talk (noisy room mode)' },
   doneTitle: 'All done!',
   doneText: 'Every question is answered. Look over the page, and press Submit yourself when you’re ready.',
   donePdf: 'Download your filled PDF, check it, then send it yourself.',
@@ -241,6 +251,10 @@ const es: Copy = {
   speeds: { normal: 'Normal', slower: 'Más despacio' },
   speedNote: 'Cambia al instante: Paperwise se reconecta y continúa.',
   typingOnly: 'Solo escribir (sin micrófono)',
+  holdToTalk: 'Lugar ruidoso: mantener para hablar',
+  holdToTalkNote: 'El micrófono solo escucha mientras mantiene pulsado el botón Hablar o la barra espaciadora, así no oye otras voces a su alrededor.',
+  holdButton: 'Mantener para hablar',
+  holding: 'Escuchando… suelte al terminar',
   language: 'Idioma',
   languageNote: 'Puede cambiar cuando quiera, incluso en medio de la conversación. También puede pedirlo: «¿Podemos hablar en inglés?»',
   connected: 'Conectado a este formulario',
@@ -296,7 +310,7 @@ const es: Copy = {
   closeHelp: 'Cerrar la ayuda',
   helpIntro: 'Hable o escriba, en su idioma. Pregunte «¿qué significa esto?», «¿por qué lo necesitan?» o «¿es seguro?» cuando quiera. Para cambiar una respuesta, dígalo o escriba en la página.',
   shortcutsTitle: 'Atajos de teclado',
-  shortcuts: { start: 'Empezar o terminar la conversación', explain: 'Explicar la pregunta actual', repeat: 'Repetir la última pregunta', type: 'Escribir una respuesta', help: 'Mostrar u ocultar esta ayuda', close: 'Cerrar la ayuda o los ajustes' },
+  shortcuts: { start: 'Empezar o terminar la conversación', explain: 'Explicar la pregunta actual', repeat: 'Repetir la última pregunta', type: 'Escribir una respuesta', help: 'Mostrar u ocultar esta ayuda', close: 'Cerrar la ayuda o los ajustes', hold: 'Mantener para hablar (lugar ruidoso)' },
   doneTitle: '¡Listo!',
   doneText: 'Todas las preguntas tienen respuesta. Revise la página y pulse Enviar usted mismo cuando esté listo.',
   donePdf: 'Descargue su PDF lleno, revíselo y envíelo usted mismo.',
@@ -354,6 +368,10 @@ const fr: Copy = {
   speeds: { normal: 'Normale', slower: 'Plus lente' },
   speedNote: 'Change tout de suite : Paperwise se reconnecte et continue.',
   typingOnly: 'Écrire seulement (sans micro)',
+  holdToTalk: 'Endroit bruyant : maintenir pour parler',
+  holdToTalkNote: 'Le micro n’écoute que pendant que vous maintenez le bouton Parler ou la barre d’espace : les autres voix autour de vous sont ignorées.',
+  holdButton: 'Maintenir pour parler',
+  holding: 'J’écoute… relâchez quand vous avez fini',
   language: 'Langue',
   languageNote: 'Vous pouvez changer à tout moment, même en pleine conversation. Vous pouvez aussi demander : « On peut parler en espagnol ? »',
   connected: 'Connecté à ce formulaire',
@@ -409,7 +427,7 @@ const fr: Copy = {
   closeHelp: 'Fermer l’aide',
   helpIntro: 'Parlez ou écrivez, dans votre langue. Demandez « ça veut dire quoi ? », « pourquoi ils en ont besoin ? » ou « c’est sûr ? » quand vous voulez. Pour changer une réponse, dites-le, ou tapez sur la page.',
   shortcutsTitle: 'Raccourcis clavier',
-  shortcuts: { start: 'Commencer ou terminer la conversation', explain: 'Expliquer la question en cours', repeat: 'Répéter la dernière question', type: 'Écrire une réponse', help: 'Afficher ou masquer cette aide', close: 'Fermer l’aide ou les réglages' },
+  shortcuts: { start: 'Commencer ou terminer la conversation', explain: 'Expliquer la question en cours', repeat: 'Répéter la dernière question', type: 'Écrire une réponse', help: 'Afficher ou masquer cette aide', close: 'Fermer l’aide ou les réglages', hold: 'Maintenir pour parler (endroit bruyant)' },
   doneTitle: 'C’est fini !',
   doneText: 'Toutes les questions ont une réponse. Relisez la page, et appuyez vous-même sur Envoyer quand vous êtes prêt.',
   donePdf: 'Téléchargez votre PDF rempli, vérifiez-le, puis envoyez-le vous-même.',
@@ -467,6 +485,10 @@ const ar: Copy = {
   speeds: { normal: 'عادية', slower: 'أبطأ' },
   speedNote: 'يتغير فورًا: يعيد Paperwise الاتصال ويكمل.',
   typingOnly: 'الكتابة فقط (بدون ميكروفون)',
+  holdToTalk: 'مكان مزدحم: اضغط مع الاستمرار للتحدث',
+  holdToTalkNote: 'لا يستمع الميكروفون إلا أثناء الضغط على زر التحدث أو مفتاح المسافة، فلا تُسمع الأصوات الأخرى من حولك.',
+  holdButton: 'اضغط مع الاستمرار للتحدث',
+  holding: 'أستمع… اترك الزر عند الانتهاء',
   language: 'اللغة',
   languageNote: 'يمكنك التغيير في أي وقت، حتى في منتصف المحادثة. ويمكنك أن تطلب ذلك ببساطة: «هل يمكننا التحدث بالإنجليزية؟»',
   connected: 'متصل بهذا النموذج',
@@ -522,7 +544,7 @@ const ar: Copy = {
   closeHelp: 'إغلاق المساعدة',
   helpIntro: 'تحدث أو اكتب بلغتك. اسأل «ماذا يعني هذا؟» أو «لماذا يحتاجون هذا؟» أو «هل هو آمن؟» في أي وقت. لتغيير إجابة، قل ذلك ببساطة أو اكتب في الصفحة.',
   shortcutsTitle: 'اختصارات لوحة المفاتيح',
-  shortcuts: { start: 'بدء المحادثة أو إنهاؤها', explain: 'شرح السؤال الحالي', repeat: 'إعادة السؤال الأخير', type: 'كتابة إجابة', help: 'إظهار هذه المساعدة أو إخفاؤها', close: 'إغلاق المساعدة أو الإعدادات' },
+  shortcuts: { start: 'بدء المحادثة أو إنهاؤها', explain: 'شرح السؤال الحالي', repeat: 'إعادة السؤال الأخير', type: 'كتابة إجابة', help: 'إظهار هذه المساعدة أو إخفاؤها', close: 'إغلاق المساعدة أو الإعدادات', hold: 'اضغط مع الاستمرار للتحدث (مكان مزدحم)' },
   doneTitle: 'انتهينا!',
   doneText: 'تمت الإجابة عن كل الأسئلة. راجع الصفحة، واضغط إرسال بنفسك عندما تكون مستعدًا.',
   donePdf: 'نزّل ملف PDF المعبأ، وتحقق منه، ثم أرسله بنفسك.',

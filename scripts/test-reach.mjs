@@ -249,6 +249,30 @@ try {
   await sleep(4000);
   panelText = await panel.$eval('aside', (el) => el.textContent);
   check(panelText.includes('Conversation') && /\d+\/\d+ complete/.test(panelText), 'mock session through his panel: conversation captions + progress');
+  // Noisy room: Settings → hold to talk. The talk button listens only while held (mouse or Space).
+  await panel.click('aside button[aria-label="Settings"]');
+  await panel.evaluate(() => [...document.querySelectorAll('aside label')].find((l) => l.textContent.includes('hold to talk'))?.querySelector('input')?.click());
+  await panel.click('aside button[aria-label="Settings"]');
+  const holdBtn = await panel.waitForSelector('aside button.h-16[aria-pressed]', { timeout: 3000 }).catch(() => null);
+  const pressed = async () => panel.$eval('aside button.h-16[aria-pressed]', (b) => b.getAttribute('aria-pressed') + '|' + b.textContent.trim());
+  const idle = holdBtn ? await pressed() : '';
+  const box = holdBtn ? await holdBtn.boundingBox() : null;
+  if (box) {
+    await panel.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await panel.mouse.down();
+  }
+  const down = holdBtn ? await pressed() : '';
+  if (box) await panel.mouse.up();
+  const up = holdBtn ? await pressed() : '';
+  await panel.evaluate(() => document.activeElement?.blur());
+  await panel.keyboard.down('Space');
+  const space = holdBtn ? await pressed() : '';
+  await panel.keyboard.up('Space');
+  const spaceUp = holdBtn ? await pressed() : '';
+  check(
+    idle.startsWith('false|Hold to talk') && down.startsWith('true|Listening') && up.startsWith('false') && space.startsWith('true') && spaceUp.startsWith('false'),
+    `hold to talk: idle "${idle}", held "${down}", let go "${up}", Space "${space}" → "${spaceUp}"`,
+  );
 
   // --- 4. Pages extensions can't touch -----------------------------------------------------
   console.log("\n=== Pages where extensions can't run");

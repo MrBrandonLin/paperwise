@@ -13,7 +13,7 @@
  *  - help + keyboard shortcuts, text size that scales everything, speaking speed, 11 languages
  *    (Arabic mirrored), state shown by shape + icon + text (not color alone)
  */
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import {
   AlertTriangle,
   BookOpen,
@@ -59,6 +59,10 @@ export interface PanelActions {
   setTextSize: (size: PanelPrefs['textSize']) => void;
   setSpeed: (speed: PanelPrefs['speed']) => void;
   setTyping: (typing: boolean) => void;
+  /** Noisy room: the microphone listens only while the talk button (or Space) is held. */
+  setHoldToTalk: (on: boolean) => void;
+  /** Hold to talk: pressed (true) or let go (false). */
+  talk: (on: boolean) => void;
   close: () => void;
   /** Mic level 0..1 while the conversation runs. */
   micLevel: () => number;
@@ -72,6 +76,7 @@ export interface PanelPrefs {
   textSize: 'normal' | 'large' | 'xl';
   speed: 'normal' | 'slower';
   typing: boolean;
+  holdToTalk: boolean;
 }
 
 /** Something went wrong, with what the user can do about it. */
@@ -101,6 +106,19 @@ export function PaperwisePanel({
   const typeRef = useRef<HTMLInputElement>(null);
   const announcement = useAnnouncements(view);
   const typingMode = prefs.typing;
+  // Hold to talk (noisy rooms): the microphone is off unless the button or Space is held.
+  const hold = prefs.holdToTalk && !typingMode && view.inConversation;
+  const [holding, setHolding] = useState(false);
+  const press = useCallback(
+    (on: boolean) => {
+      setHolding(on);
+      actions.talk(on);
+    },
+    [actions],
+  );
+  useEffect(() => {
+    if (!hold) setHolding(false);
+  }, [hold]);
 
   // Keyboard shortcuts (not while typing in a text box): listed in the help sheet.
   useEffect(() => {
@@ -113,7 +131,9 @@ export function PaperwisePanel({
       const t = e.target as HTMLElement | null;
       if (t && (t.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(t.tagName))) return;
       const key = e.key.toLowerCase();
-      if (key === '?' || key === 'h') setOverlay((o) => (o === 'help' ? null : 'help'));
+      if (e.key === ' ' && hold) {
+        if (!e.repeat) press(true);
+      } else if (key === '?' || key === 'h') setOverlay((o) => (o === 'help' ? null : 'help'));
       else if (key === 's' && view.screen !== 'notice' && view.screen !== 'loading') (view.inConversation ? actions.end : typingMode ? actions.startTyping : actions.start)();
       else if (key === 'e' && view.inConversation) actions.sendText(copy.explainRequest);
       else if (key === 'r' && view.inConversation) actions.sendText(copy.repeatRequest);
@@ -121,9 +141,22 @@ export function PaperwisePanel({
       else return;
       e.preventDefault();
     };
+    // Let go of Space, or the panel loses focus: stop listening (never stuck on).
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key !== ' ' || !hold) return;
+      e.preventDefault();
+      press(false);
+    };
+    const onBlur = () => hold && press(false);
     window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [overlay, view.screen, view.inConversation, typingMode, copy, actions]);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', onBlur);
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', onBlur);
+    };
+  }, [overlay, view.screen, view.inConversation, typingMode, copy, actions, hold, press]);
 
   const ready = view.screen !== 'notice' && view.screen !== 'loading';
 
@@ -167,7 +200,7 @@ export function PaperwisePanel({
         {view.screen === 'notice' && <NoticeCard view={view} onRetry={actions.retry} />}
         {extra}
         {view.done && <DoneCard view={view} pdf={pdf} onDownload={actions.downloadPdf} />}
-        {ready && !view.done && !typingMode && <VoiceDisplay view={view} micLevel={actions.micLevel} />}
+        {ready && !view.done && !typingMode && <VoiceDisplay view={view} micLevel={actions.micLevel} muted={hold && !holding} />}
         {view.attention && <AttentionCard attention={view.attention} />}
         {view.explanation && (
           <section className="glass-light mb-3 rounded-xl px-4 py-3 [--glass-tint:var(--primary)]" aria-label={copy.whatItMeans}>
@@ -198,7 +231,7 @@ export function PaperwisePanel({
           </div>
         )}
         {ready && !view.done && <TypeBox view={view} onSend={actions.sendText} inputRef={typeRef} />}
-        <StartEnd view={view} actions={actions} typing={typingMode} />
+        <StartEnd view={view} actions={actions} typing={typingMode} hold={hold} holding={holding} press={press} />
         <p className="mt-3 flex items-center justify-center gap-1.5 text-center text-xs text-muted-foreground">
           <ShieldCheck className="size-3.5 shrink-0" aria-hidden="true" /> {copy.neverSubmit}
         </p>
@@ -356,6 +389,11 @@ function SettingsSheet({ view, prefs, actions, onClose }: { view: PanelView; pre
         <span className="font-bold">{copy.typingOnly}</span>
         <input type="checkbox" checked={prefs.typing} onChange={(e) => actions.setTyping(e.target.checked)} className="size-5 accent-primary" />
       </label>
+      <label className="mt-1 flex min-h-11 items-center justify-between gap-2">
+        <span className="font-bold">{copy.holdToTalk}</span>
+        <input type="checkbox" checked={prefs.holdToTalk} onChange={(e) => actions.setHoldToTalk(e.target.checked)} className="size-5 accent-primary" />
+      </label>
+      <p className="text-xs text-muted-foreground">{copy.holdToTalkNote}</p>
     </section>
   );
 }
@@ -388,6 +426,7 @@ function HelpSheet({ view, onClose }: { view: PanelView; onClose: () => void }) 
     ['E', copy.shortcuts.explain],
     ['R', copy.shortcuts.repeat],
     ['T', copy.shortcuts.type],
+    ['Space', copy.shortcuts.hold],
     ['?', copy.shortcuts.help],
     ['Esc', copy.shortcuts.close],
   ];
@@ -416,9 +455,9 @@ function HelpSheet({ view, onClose }: { view: PanelView; onClose: () => void }) 
 }
 
 /** His "Mic always on" waveform, now driven by the real microphone level. */
-function VoiceDisplay({ view, micLevel }: { view: PanelView; micLevel: () => number }) {
+function VoiceDisplay({ view, micLevel, muted }: { view: PanelView; micLevel: () => number; muted: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
-  const on = view.inConversation;
+  const on = view.inConversation && !muted;
   useEffect(() => {
     if (!on) {
       ref.current?.style.setProperty('--level', '0');
@@ -647,8 +686,53 @@ function TypeBox({ view, onSend, inputRef }: { view: PanelView; onSend: (text: s
   );
 }
 
-function StartEnd({ view, actions, typing }: { view: PanelView; actions: PanelActions; typing: boolean }) {
+function StartEnd({
+  view,
+  actions,
+  typing,
+  hold,
+  holding,
+  press,
+}: {
+  view: PanelView;
+  actions: PanelActions;
+  typing: boolean;
+  hold: boolean;
+  holding: boolean;
+  press: (on: boolean) => void;
+}) {
   const { copy } = view;
+  if (view.inConversation && hold) {
+    // Pointer capture: sliding off the button while holding still counts until it's let go.
+    return (
+      <div className="flex flex-col gap-2">
+        <Button
+          aria-pressed={holding}
+          className={`relative h-16 w-full touch-none rounded-xl text-base select-none ${holding ? 'scale-[.98] ring-4 ring-primary/40' : ''}`}
+          onPointerDown={(e) => {
+            e.currentTarget.setPointerCapture(e.pointerId);
+            press(true);
+          }}
+          onPointerUp={() => press(false)}
+          onPointerCancel={() => press(false)}
+          onLostPointerCapture={() => press(false)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !e.repeat) press(true);
+          }}
+          onKeyUp={(e) => {
+            if (e.key === 'Enter') press(false);
+          }}
+          onContextMenu={(e) => e.preventDefault()}
+        >
+          {holding && <span className="orb-pulse absolute inset-0 rounded-xl bg-primary" aria-hidden="true" />}
+          <Mic className="relative" aria-hidden="true" /> <span className="relative">{holding ? copy.holding : copy.holdButton}</span>
+        </Button>
+        <Button variant="outline" className="h-12 w-full rounded-xl text-base" onClick={actions.end}>
+          <MicOff aria-hidden="true" /> {copy.end}
+        </Button>
+      </div>
+    );
+  }
   if (view.inConversation) {
     return (
       <Button variant="outline" className="h-12 w-full rounded-xl text-base" onClick={actions.end}>

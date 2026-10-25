@@ -36,6 +36,13 @@ Your folder was at the Windows-paths fix. It now has the whole finishing pass:
    each conversation; when it's empty, the panel says "The voice service (ElevenLabs) has run out of
    credits…" (en/es/fr/ar) with Try again. `pnpm demo:check` shows the credits left.
 
+4. **Noisy room: hold to talk.** In a crowded room the agent picked up every voice around it.
+   Settings → "Noisy room: hold to talk": the microphone sends nothing to the agent unless the user
+   holds the Talk button (or the Space bar), so other people can't answer for the user or cut the
+   agent off. Switchable during a conversation (no reconnect); remembered. Words in en/es/fr/ar.
+   Tested: `pnpm test:voice` (mute/unmute reach the SDK) and `pnpm test:reach` (button and Space).
+   No server or agent change: ElevenLabs has no setting that filters other voices.
+
 ## Before the demo: new ElevenLabs key
 
 1. In `paperwise/server/.env`: put the new key in `ELEVENLABS_API_KEY=` and empty

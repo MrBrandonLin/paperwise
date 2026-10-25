@@ -109,6 +109,7 @@ this PDF with Paperwise**. After the review: **Download filled PDF**.
 A real website that works fully: https://httpbin.org/forms/post (pizza order). Bank sign-up with
 private fields: https://parabank.parasoft.com/parabank/register.htm.
 
+**Noisy room (demo day):** Settings → **Noisy room: hold to talk**, then hold the Talk button or Space while speaking.
 **Without voice:** everything works by typing too (type in the box, or Settings → Typing only).
 **Keyboard:** S start/stop, E explain, R repeat, T type, ? help, Esc close. **Debug:** Shift+D.
 
